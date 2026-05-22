@@ -1,6 +1,7 @@
 use reqwest::{
     blocking::{Client, ClientBuilder},
 };
+use thiserror::Error;
 // serde json
 // request -> assume json -> pretty print
 // take in enum and pretty print based off html, xml, json
@@ -11,10 +12,6 @@ pub struct Hurler {
     client: Client,
 }
 
-pub enum Error {
-
-}
-
 impl Hurler {
     pub fn new() -> Self {
         Hurler {
@@ -23,6 +20,19 @@ impl Hurler {
     }
 
     pub fn get(path: String) -> Result<(), Error> {
+
         Ok(())
+    }
+
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get() {
+
     }
 }
