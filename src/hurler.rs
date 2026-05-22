@@ -11,8 +11,18 @@ pub struct Hurler {
     client: Client,
 }
 
-impl Hurler {
-    pub fn get(path: String) {
+pub enum Error {
 
+}
+
+impl Hurler {
+    pub fn new() -> Self {
+        Hurler {
+            client: Client::new(),
+        }
+    }
+
+    pub fn get(path: String) -> Result<(), Error> {
+        Ok(())
     }
 }
