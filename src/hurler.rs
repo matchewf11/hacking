@@ -1,3 +1,4 @@
+use colored_json::ToColoredJson;
 use reqwest::{Client, header};
 use serde_json::Value;
 
@@ -31,7 +32,7 @@ impl Hurler {
 
         let json: Value =
             serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
-        println!("{}", json);
+        println!("{}", serde_json::to_string_pretty(&json).unwrap().to_colored_json_auto().unwrap());
         Ok(())
     }
 
@@ -47,7 +48,7 @@ impl Hurler {
 
         let json: Value =
             serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
-        println!("{}", json);
+        println!("{}", serde_json::to_string_pretty(&json).unwrap().to_colored_json_auto().unwrap());
         Ok(())
     }
 }
