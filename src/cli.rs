@@ -30,13 +30,3 @@ pub fn start() -> Result<(), Error> {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn example_test() {
-
-    }
-}
