@@ -31,5 +31,6 @@ Body
 ```
 # := is values
 # = is strings
+# foo.bar = foo // this is tables
 hurl post "https://foo.com" --body foo:=1,bar=2
 ```

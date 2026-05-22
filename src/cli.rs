@@ -18,13 +18,28 @@ struct Cli {
 enum Commands {
     /// Get a url
     Get {
-        /// Path to the url
-        path: String,
+        /// Base to the url
+        base: String,
 
         /// Whether or not to pretty pring the output
         #[arg(short, long)]
-        pretty: bool,
-    }
+        format: bool,
+
+        /// --path "/foo/bar"
+        #[arg(short, long)]
+        path: Option<String>,
+
+        /// Query Args
+        #[arg(short, long)]
+        query: Vec<String>,
+    },
+    Test {
+        input: String,
+    },
+    Post {
+        base: String,
+        json: Vec<String>,
+    },
 }
 
 pub fn start() -> Result<(), Error> {
@@ -32,10 +47,9 @@ pub fn start() -> Result<(), Error> {
     let hurler = Hurler::new();
 
     match args.command {
-        Commands::Get { path, pretty } => {
-            let _ = pretty;
-
-            hurler.get(path)
+        Commands::Get { base, path, format, query } => {
+            hurler.get(base)
         }
+        _ => todo!(),
     }
 }
