@@ -2,6 +2,7 @@ use clap::{
     Parser,
     Subcommand,
 };
+use crate::hurler::{Error, Hurler};
 
 // <https://docs.rs/clap/latest/clap/_cookbook/git_derive/index.html>
 
@@ -19,12 +20,13 @@ enum Commands {
     }
 }
 
-pub fn start() {
+pub fn start() -> Result<(), Error> {
     let args = Cli::parse();
+    let hurler = Hurler::new();
 
     match args.command {
         Commands::Get { path } => {
-            println!("{path}");
+            hurler.get(path)
         }
     }
 }

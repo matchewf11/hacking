@@ -19,8 +19,7 @@ impl Hurler {
         }
     }
 
-    pub fn get(path: String) -> Result<(), Error> {
-
+    pub fn get(&self, path: String) -> Result<(), Error> {
         Ok(())
     }
 
