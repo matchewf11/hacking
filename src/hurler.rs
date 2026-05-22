@@ -1,8 +1,5 @@
-use reqwest::{
-    blocking::{Client, ClientBuilder},
-    header,
-};
-use serde_json::{Value, json};
+use reqwest::{Client, header};
+use serde_json::Value;
 
 use crate::Error;
 
@@ -23,15 +20,33 @@ impl Hurler {
         }
     }
 
-    pub fn get(&self, path: String) -> Result<(), Error> {
+    pub async fn get(&self, path: String) -> Result<(), Error> {
         let res = self
             .client
             .get(&path)
             .header(header::ACCEPT, "applications/json")
             .send()
+            .await
             .map_err(|e| Error::Get(path, e))?;
 
-        let json: Value = serde_json::from_str(&res.text().unwrap()).unwrap();
+        let json: Value =
+            serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
+        println!("{}", json);
+        Ok(())
+    }
+
+    pub async fn post(&self, path: String, body: String) -> Result<(), Error> {
+        let res = self
+            .client
+            .post(&path)
+            .body(body)
+            .header(header::ACCEPT, "applications/json")
+            .send()
+            .await
+            .map_err(|e| Error::Post(path, e))?;
+
+        let json: Value =
+            serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
         println!("{}", json);
         Ok(())
     }
@@ -41,6 +56,22 @@ impl Hurler {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_get() {}
+    #[tokio::test]
+    async fn test_get() {
+        let h = Hurler::new();
+        h.get("https://jsonplaceholder.typicode.com/todos/1".to_string())
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_post() {
+        let h = Hurler::new();
+        h.post(
+            "https://jsonplaceholder.typicode.com/posts".to_string(),
+            r#"{"title": "foo", "body": "bar", "userId": 1}"#.to_string(),
+        )
+        .await
+        .unwrap();
+    }
 }

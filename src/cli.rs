@@ -42,13 +42,13 @@ enum Commands {
     },
 }
 
-pub fn start() -> Result<(), Error> {
+pub async fn start() -> Result<(), Error> {
     let args = Cli::parse();
     let hurler = Hurler::new();
 
     match args.command {
         Commands::Get { base, path, format, query } => {
-            hurler.get(base)
+            hurler.get(base).await
         }
         _ => todo!(),
     }

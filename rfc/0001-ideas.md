@@ -29,7 +29,7 @@ hurl get "https://foo.com" -a foo=1,bar=2
 
 Body
 ```
-:= is values
+:= is values // auto converts
 = is strings
 foo.bar = foo // this is tables
 
