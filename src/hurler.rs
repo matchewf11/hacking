@@ -3,6 +3,7 @@ use reqwest::{
     blocking::{Client, ClientBuilder},
     header,
 };
+use serde_json::json;
 use crate::Error;
 
 // serde json
@@ -29,7 +30,9 @@ impl Hurler {
             .header(header::ACCEPT, "applications/json")
             .send()
             .map_err(|e| Error::Get(path, e))?;
-        println!(res);
+
+        let json = serde_json::from_str(&res.text().unwrap());
+        println!(json);
         Ok(())
     }
 }
