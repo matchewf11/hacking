@@ -1,8 +1,5 @@
-use clap::{
-    Parser,
-    Subcommand,
-};
-use crate::{Hurler, Error};
+use crate::{Error, Hurler};
+use clap::{Parser, Subcommand};
 
 // <https://docs.rs/clap/latest/clap/_cookbook/git_derive/index.html>
 
@@ -47,9 +44,17 @@ pub async fn start() -> Result<(), Error> {
     let hurler = Hurler::new();
 
     match args.command {
-        Commands::Get { base, path, format, query } => {
-            hurler.get(base).await
+        Commands::Get {
+            base,
+            path,
+            format,
+            query,
+        } => hurler.get(base).await,
+        Commands::Test { input } => {
+            todo!();
         }
-        _ => todo!(),
+        Commands::Post { base, json } => {
+            todo!();
+        }
     }
 }

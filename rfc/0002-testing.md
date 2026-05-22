@@ -37,3 +37,7 @@ group "foo"
         assert status 200
         assert body.foo
 ```
+
+allow for env expansion for this
+
+allow for cookies

@@ -9,6 +9,8 @@ Some Nice Builtins It will include:
 - pretty printing (for json also html)
 - get/post/update/... cmds
 - testing suite (declaritive testing)
+- json extracter
+- take in stdin for chaining
 
 ```
 hurl get "https://foo.com/foo" --pretty-print

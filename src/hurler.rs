@@ -32,7 +32,13 @@ impl Hurler {
 
         let json: Value =
             serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
-        println!("{}", serde_json::to_string_pretty(&json).unwrap().to_colored_json_auto().unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json)
+                .unwrap()
+                .to_colored_json_auto()
+                .unwrap()
+        );
         Ok(())
     }
 
@@ -48,7 +54,13 @@ impl Hurler {
 
         let json: Value =
             serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
-        println!("{}", serde_json::to_string_pretty(&json).unwrap().to_colored_json_auto().unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json)
+                .unwrap()
+                .to_colored_json_auto()
+                .unwrap()
+        );
         Ok(())
     }
 }

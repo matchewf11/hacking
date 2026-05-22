@@ -1,7 +1,7 @@
 mod cli;
-mod hurler;
 mod error;
+mod hurler;
 mod parser;
 pub use cli::start;
-pub use hurler::Hurler;
 pub use error::Error;
+pub use hurler::Hurler;
