@@ -9,6 +9,8 @@ The idea to have multithreaded testing.
 # Syntax
 
 ```
+include "foo.hurl"
+
 group "auth"
     test "returns authenticated user"
         get "/foo"
