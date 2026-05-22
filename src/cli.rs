@@ -26,6 +26,7 @@ enum Commands {
         #[arg(short, long)]
         path: Option<String>,
 
+        // :id
         /// Query Args
         #[arg(short, long)]
         query: Vec<String>,
@@ -49,7 +50,10 @@ pub async fn start() -> Result<(), Error> {
             path,
             format,
             query,
-        } => hurler.get(base).await,
+        } => 
+            hurler
+                .get(base, &query.iter().map(|s| s.as_str()).collect::<Vec<_>>())
+                .await,
         Commands::Test { input } => {
             todo!();
         }
