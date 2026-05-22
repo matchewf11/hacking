@@ -1,7 +1,8 @@
 use reqwest::{
     blocking::{Client, ClientBuilder},
 };
-use thiserror::Error;
+use crate::Error;
+
 // serde json
 // request -> assume json -> pretty print
 // take in enum and pretty print based off html, xml, json

@@ -2,7 +2,7 @@ use clap::{
     Parser,
     Subcommand,
 };
-use crate::hurler::{Error, Hurler};
+use crate::{Hurler, Error};
 
 // <https://docs.rs/clap/latest/clap/_cookbook/git_derive/index.html>
 
