@@ -1,8 +1,5 @@
-use clap::{
-    Parser,
-    Subcommand,
-};
-use crate::{Hurler, Error};
+use crate::{Error, Hurler};
+use clap::{Parser, Subcommand};
 
 // <https://docs.rs/clap/latest/clap/_cookbook/git_derive/index.html>
 
@@ -29,6 +26,7 @@ enum Commands {
         #[arg(short, long)]
         path: Option<String>,
 
+        // :id
         /// Query Args
         #[arg(short, long)]
         query: Vec<String>,
@@ -47,8 +45,15 @@ pub async fn start() -> Result<(), Error> {
     let hurler = Hurler::new();
 
     match args.command {
-        Commands::Get { base, path, format, query } => {
-            hurler.get(base).await
+        Commands::Get {
+            base,
+            path,
+            format,
+            query,
+        } => {
+            hurler
+                .get(base, &query.iter().map(|s| s.as_str()).collect::<Vec<_>>())
+                .await
         }
         _ => todo!(),
     }

@@ -21,10 +21,11 @@ impl Hurler {
         }
     }
 
-    pub async fn get(&self, path: String) -> Result<(), Error> {
+    pub async fn get(&self, path: String, queries: &[&str]) -> Result<(), Error> {
         let res = self
             .client
             .get(&path)
+            .query(&self.get_queries(&queries))
             .header(header::ACCEPT, "applications/json")
             .send()
             .await
@@ -32,7 +33,13 @@ impl Hurler {
 
         let json: Value =
             serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
-        println!("{}", serde_json::to_string_pretty(&json).unwrap().to_colored_json_auto().unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json)
+                .unwrap()
+                .to_colored_json_auto()
+                .unwrap()
+        );
         Ok(())
     }
 
@@ -48,8 +55,28 @@ impl Hurler {
 
         let json: Value =
             serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
-        println!("{}", serde_json::to_string_pretty(&json).unwrap().to_colored_json_auto().unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json)
+                .unwrap()
+                .to_colored_json_auto()
+                .unwrap()
+        );
         Ok(())
+    }
+
+    pub async fn delete(&self, path: String, body: String) -> Result<(), Error> {
+
+    }
+
+    fn get_queries<'a>(&self, queries: &[&'a str]) -> Vec<(&'a str, &'a str)> {
+        queries
+            .iter()
+            .filter_map(|s| {
+                let mut p = s.splitn(2, "=");
+                Some((p.next()?, p.next()?))
+            })
+            .collect()
     }
 }
 
@@ -60,9 +87,12 @@ mod tests {
     #[tokio::test]
     async fn test_get() {
         let h = Hurler::new();
-        h.get("https://jsonplaceholder.typicode.com/todos/1".to_string())
-            .await
-            .unwrap();
+        h.get(
+            "https://jsonplaceholder.typicode.com/todos/1".to_string(),
+            &[],
+        )
+        .await
+        .unwrap();
     }
 
     #[tokio::test]

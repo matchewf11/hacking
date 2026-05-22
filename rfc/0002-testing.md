@@ -18,7 +18,7 @@ group "auth"
         assert body.foo
 
     test "returns expected foo value"
-        get "/foo"
+        post "/foo"
         assert status 200
         assert body.foo "bar"
 
