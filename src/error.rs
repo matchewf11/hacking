@@ -1,7 +1,7 @@
 use thisError::Error;
 
 #[derive(Error, Debug)]
-pub enum HurlError {
+pub enum Error {
     #[error("unable to get {0}")]
-    GetError(String),
+    Get(String),
 }
