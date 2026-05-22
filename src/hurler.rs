@@ -66,13 +66,13 @@ impl Hurler {
     }
 
     pub async fn delete(&self, path: String, body: String) -> Result<(), Error> {
-
+        todo!();
     }
 
-    fn get_queries<'a>(&self, queries: &[&'a str]) -> Vec<(&'a str, &'a str)> {
+    fn get_queries<'a>(&self, queries: &[&'a str]) -> Option<Vec<(&'a str, &'a str)>> {
         queries
             .iter()
-            .filter_map(|s| {
+            .map(|s| {
                 let mut p = s.splitn(2, "=");
                 Some((p.next()?, p.next()?))
             })
