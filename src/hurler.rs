@@ -1,5 +1,7 @@
+use crate::hurler::Error;
 use reqwest::{
     blocking::{Client, ClientBuilder},
+    header,
 };
 use crate::Error;
 
@@ -21,18 +23,21 @@ impl Hurler {
     }
 
     pub fn get(&self, path: String) -> Result<(), Error> {
+        let res = self
+            .client
+            .get(path)
+            .header(header::ACCEPT, "applications/json")
+            .send()
+            .map_err(|e| Error::Get(path, e))?;
+        println!(res);
         Ok(())
     }
-
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_get() {
-
-    }
+    fn test_get() {}
 }
