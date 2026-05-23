@@ -59,6 +59,12 @@ pub struct Hurler {
     client: Client,
 }
 
+impl Default for Hurler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Hurler {
     pub fn new() -> Self {
         Hurler {
@@ -82,7 +88,7 @@ impl Hurler {
             .map_err(|e| Error::Get(ho.path, e))?;
 
         let json: Value =
-            serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
+            serde_json::from_str(&res.text().await.map_err(Error::Json).unwrap()).unwrap();
         self.pretty_p(&json);
         Ok(json)
     }
@@ -104,7 +110,7 @@ impl Hurler {
             .map_err(|e| Error::Post(ho.path, e))?;
 
         let json: Value =
-            serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
+            serde_json::from_str(&res.text().await.map_err(Error::Json).unwrap()).unwrap();
         self.pretty_p(&json);
         Ok(json)
     }
@@ -126,7 +132,7 @@ impl Hurler {
             .map_err(|e| Error::Patch(ho.path, e))?;
 
         let json: Value =
-            serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
+            serde_json::from_str(&res.text().await.map_err(Error::Json).unwrap()).unwrap();
         self.pretty_p(&json);
         Ok(json)
     }
@@ -148,7 +154,7 @@ impl Hurler {
             .map_err(|e| Error::Put(ho.path, e))?;
 
         let json: Value =
-            serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
+            serde_json::from_str(&res.text().await.map_err(Error::Json).unwrap()).unwrap();
         self.pretty_p(&json);
         Ok(json)
     }
@@ -170,7 +176,7 @@ impl Hurler {
             .map_err(|e| Error::Delete(ho.path, e))?;
 
         let json: Value =
-            serde_json::from_str(&res.text().await.map_err(|e| Error::Json(e)).unwrap()).unwrap();
+            serde_json::from_str(&res.text().await.map_err(Error::Json).unwrap()).unwrap();
         self.pretty_p(&json);
         Ok(json)
     }
