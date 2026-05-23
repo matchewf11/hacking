@@ -30,7 +30,8 @@ syntax keyword wurlOperator not
 highlight default link wurlOperator Operator
 
 " Matchers
-syntax keyword wurlMatcher present absent empty equals eq not-equals neq contains not-contains starts-with ends-with gt gte lt lte length matches
+syntax keyword wurlMatcher present absent empty equals eq not-equals neq not-contains starts-with ends-with gt gte lt lte length matches
+syntax match wurlMatcher "\<contains\>"
 highlight default link wurlMatcher Operator
 
 " Target Types (status, duration, body, header, cookie)
