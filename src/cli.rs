@@ -1,4 +1,5 @@
-use crate::{ Error, Hurler,
+use crate::{
+    Error, Hurler,
     hurler::Ho,
     parser::{json::parse_json, suite::parse},
     preproc::preproc,
@@ -40,6 +41,8 @@ enum Commands {
         /// headers
         #[arg(long)]
         headers: Vec<String>,
+        #[arg(short, long)]
+        cookies: Vec<String>,
     },
     Test {
         /// input
@@ -69,6 +72,9 @@ enum Commands {
         /// input
         #[arg(long)]
         headers: Vec<String>,
+
+        #[arg(short, long)]
+        cookies: Vec<String>,
     },
 }
 
@@ -83,6 +89,7 @@ pub async fn start() -> Result<(), Error> {
             // format,
             query,
             headers,
+            cookies,
         } => {
             hurler
                 .get(Ho::new(
@@ -90,6 +97,7 @@ pub async fn start() -> Result<(), Error> {
                     Option::None,
                     &query.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                     &headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    &cookies.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                 )?)
                 .await?;
         }
@@ -112,6 +120,7 @@ pub async fn start() -> Result<(), Error> {
             // format,
             query,
             headers,
+            cookies,
         } => {
             let body = parse_json(&json.iter().map(|s| s.as_str()).collect::<Vec<_>>()).to_string();
             hurler
@@ -120,6 +129,7 @@ pub async fn start() -> Result<(), Error> {
                     Option::Some(body),
                     &query.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                     &headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    &cookies.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                 )?)
                 .await?;
         }

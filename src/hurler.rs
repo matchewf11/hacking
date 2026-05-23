@@ -9,9 +9,8 @@ pub struct Ho<'a> {
     path: String,
     body: Option<String>,
     queries: Option<Vec<(&'a str, &'a str)>>,
-    // path args?
     headers: Option<Vec<(&'a str, &'a str)>>,
-    // cookies?
+    cookies: Option<Vec<(&'a str, &'a str)>>,
     // etc??
 }
 
@@ -21,6 +20,7 @@ impl<'a> Ho<'a> {
         body: Option<String>,
         queries: &'a [&'a str],
         headers: &'a [&'a str],
+        cookies: &'a [&'a str],
     ) -> Result<Self, Error> {
         let path = if !path.starts_with("http://") && !path.starts_with("https://") {
             format!("http://{}", path)
@@ -32,6 +32,7 @@ impl<'a> Ho<'a> {
             body,
             queries: Option::Some(Ho::get_queries(queries)?),
             headers: Option::Some(Ho::get_headers(headers)?),
+            cookies: Option::Some(Ho::get_cookies(cookies)?),
         })
     }
 
@@ -54,6 +55,18 @@ impl<'a> Ho<'a> {
                 let mut p = s.splitn(2, ":");
                 let k = p.next().ok_or(Error::Header("missing key".to_string()))?;
                 let v = p.next().ok_or(Error::Header("missing value".to_string()))?;
+                Ok((k, v))
+            })
+            .collect()
+    }
+
+    fn get_cookies(queries: &[&'a str]) -> Result<Vec<(&'a str, &'a str)>, Error> {
+        queries
+            .iter()
+            .map(|s| {
+                let mut p = s.splitn(2, "=");
+                let k = p.next().ok_or(Error::Cookie("missing key".to_string()))?;
+                let v = p.next().ok_or(Error::Cookie("missing value".to_string()))?;
                 Ok((k, v))
             })
             .collect()

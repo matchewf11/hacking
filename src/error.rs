@@ -18,6 +18,8 @@ pub enum Error {
     Query(String),
     #[error("unable to read headers: {0}")]
     Header(String),
+    #[error("unable to read cookies: {0}")]
+    Cookie(String),
     #[error("{0} test(s) failed")]
     TestsFailed(usize),
     #[error("failed to parse request: {0}")]
