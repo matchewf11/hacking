@@ -1,7 +1,7 @@
-use hurl::Error;
+use wurl::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let _ = hurl::start().await?;
+    let _ = wurl::start().await?;
     Ok(())
 }

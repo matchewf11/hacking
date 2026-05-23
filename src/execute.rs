@@ -47,7 +47,7 @@ struct TestResult {
 
 pub async fn run_tests(suite: Suite) -> Result<(), Error> {
     let client = Client::new();
-    let base = std::env::var("HURL_BASE_URL").unwrap_or_default();
+    let base = std::env::var("WURL_BASE_URL").unwrap_or_default();
 
     // Each group runs concurrently; tests within a group run sequentially so
     // later tests can depend on state established by earlier ones.

@@ -4,8 +4,8 @@ use serde_json::Value;
 
 use crate::Error;
 
-// Hurler object btw
-pub struct Ho<'a> {
+// Wurler object btw
+pub struct Wo<'a> {
     path: String,
     body: Option<String>,
     queries: Option<Vec<(&'a str, &'a str)>>,
@@ -14,7 +14,7 @@ pub struct Ho<'a> {
     // etc??
 }
 
-impl<'a> Ho<'a> {
+impl<'a> Wo<'a> {
     pub fn new(
         path: String,
         body: Option<String>,
@@ -27,12 +27,12 @@ impl<'a> Ho<'a> {
         } else {
             path
         };
-        Ok(Ho {
+        Ok(Wo {
             path,
             body,
-            queries: Option::Some(Ho::get_queries(queries)?),
-            headers: Option::Some(Ho::get_headers(headers)?),
-            cookies: Option::Some(Ho::get_cookies(cookies)?),
+            queries: Option::Some(Wo::get_queries(queries)?),
+            headers: Option::Some(Wo::get_headers(headers)?),
+            cookies: Option::Some(Wo::get_cookies(cookies)?),
         })
     }
 
@@ -73,24 +73,24 @@ impl<'a> Ho<'a> {
     }
 }
 
-pub struct Hurler {
+pub struct Wurler {
     client: Client,
 }
 
-impl Default for Hurler {
+impl Default for Wurler {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Hurler {
+impl Wurler {
     pub fn new() -> Self {
-        Hurler {
+        Wurler {
             client: Client::new(),
         }
     }
 
-    pub async fn get(&self, ho: Ho<'_>) -> Result<serde_json::Value, Error> {
+    pub async fn get(&self, ho: Wo<'_>) -> Result<serde_json::Value, Error> {
         let res = ho
             .headers
             .unwrap_or_default()
@@ -111,7 +111,7 @@ impl Hurler {
         Ok(json)
     }
 
-    pub async fn post(&self, ho: Ho<'_>) -> Result<serde_json::Value, Error> {
+    pub async fn post(&self, ho: Wo<'_>) -> Result<serde_json::Value, Error> {
         let res = ho
             .headers
             .unwrap_or_default()
@@ -133,7 +133,7 @@ impl Hurler {
         Ok(json)
     }
 
-    pub async fn patch(&self, ho: Ho<'_>) -> Result<serde_json::Value, Error> {
+    pub async fn patch(&self, ho: Wo<'_>) -> Result<serde_json::Value, Error> {
         let res = ho
             .headers
             .unwrap_or_default()
@@ -155,7 +155,7 @@ impl Hurler {
         Ok(json)
     }
 
-    pub async fn put(&self, ho: Ho<'_>) -> Result<serde_json::Value, Error> {
+    pub async fn put(&self, ho: Wo<'_>) -> Result<serde_json::Value, Error> {
         let res = ho
             .headers
             .unwrap_or_default()
@@ -177,7 +177,7 @@ impl Hurler {
         Ok(json)
     }
 
-    pub async fn delete(&self, ho: Ho<'_>) -> Result<serde_json::Value, Error> {
+    pub async fn delete(&self, ho: Wo<'_>) -> Result<serde_json::Value, Error> {
         let res = ho
             .headers
             .unwrap_or_default()

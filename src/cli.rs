@@ -1,6 +1,6 @@
 use crate::{
-    Error, Hurler,
-    hurler::Ho,
+    Error, Wurler,
+    wurler::Wo,
     parser::{json::parse_json, suite::parse},
     preproc::preproc,
     execute::run_tests,
@@ -14,106 +14,7 @@ use std::io::{self, Read};
 
 /// A better curl CLI
 #[derive(Parser)]
-#[command(
-    about = "Hurl is a better curl!",
-    long_about = r##"
-    grok
-       .-""""""-.
-     .'          '.
-    /   O      O   \
-   :                :
-   |    \     /     |    H  H   U   U   RRRR   L
-   :     '---'      :    H  H   U   U   R   R  L
-    \              /     HHHH   U   U   RRRR   L
-     '.          .'      H  H   U   U   R  R   L
-       '-......-'        H  H   UUUUU   R   R  LLLLL
-              |
-             _|_
-            /   \
-           |  ~  |  <--- HURL
-            \___/
-             |||
-            _|||_
-
-        chatgpt
-                          .-''''-.
-                .'  .--.  '.
-               /   /    \   \
-              |   | 0  0 |   |
-              |   |  /\  |   |
-               \   \_==_/   /
-                '._  --  _.'
-                   |====|
-                .--|    |--.
-              .'   |    |   '.
-             /    /|    |\    \
-            /____/ |    | \____\
-                   |    |
-                  /      \
-                 /  /\    \
-                /  /  \    \
-               /__/    \____\
-
-                      \  \  \  \  \  \  \
-
-                        hh   hh  uu   uu  rrrrrr   ll
-                        hh   hh  uu   uu  rr   rr  ll
-                        hhhhhhh  uu   uu  rrrrrr   ll
-                        hh   hh  uu   uu  rr  rr   ll
-                        hh   hh   uuuuu   rr   rr  lllll
-
-                           ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
-        Alternative more chaotic version:
-
-                 .-""""-.
-           .'  .--.  '.
-          /   /    \   \
-         |   | x  x |   |
-         |   |  --  |   |
-          \   \____/   /
-           '._.__._.'
-              /|\
-             / | \
-            /  |  \
-               |
-              / \
-
-                  \
-                   \__
-                      \___
-                          \__hhhhh
-                             uu   uu
-                             uu   uu
-                             uu   uu
-                              uuuuu
-                           rrrrrr
-                           rr   rr
-                           rrrrrr
-                           rr  rr
-                           rr   rr
-                                      ll
-                                      ll
-                                      ll
-                                      ll
-                                      lllll
-
-    gemini
-    _.-'''''''-._
-  .'  __    __   '.
- /   (o )  (o )    \
-|    __      __     |
-|   /  \    /  \    |       ____                 __     
- \  \__/    \__/   /       / __ \__  _______  __/ /_  v v 
-  \               /       / /_/ / / / / ___/ / / / /
-   '._  '---'  _.'       / __  / /_/ / /  / /_/ / /   ~~~~~
-      '-.____.-'        /_/ /_/\__,_/_/   \__,_/_/  (______)_
-        /    \                                        (___ __)
-       /  ||  \     _ _ _ ___ _ ___ _ _ _ ___ _ _      (____)
-      /   ||   \___/ / / /   / /   / / / /   / / \_____/ / /
-     (____||____)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    "##,
-)]
+#[command(about = "Wurl is a better curl!", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -181,7 +82,7 @@ enum Commands {
 
 pub async fn start() -> Result<(), Error> {
     let args = Cli::parse();
-    let hurler = Hurler::new();
+    let wurler = Wurler::new();
 
     match args.command {
         Commands::Get {
@@ -192,8 +93,8 @@ pub async fn start() -> Result<(), Error> {
             headers,
             cookies,
         } => {
-            hurler
-                .get(Ho::new(
+            wurler
+                .get(Wo::new(
                     format!("{}{}", base, path.unwrap_or_default()),
                     Option::None,
                     &query.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
@@ -224,8 +125,8 @@ pub async fn start() -> Result<(), Error> {
             cookies,
         } => {
             let body = parse_json(&json.iter().map(|s| s.as_str()).collect::<Vec<_>>()).to_string();
-            hurler
-                .post(Ho::new(
+            wurler
+                .post(Wo::new(
                     format!("{}{}", base, path.unwrap_or_default()),
                     Option::Some(body),
                     &query.iter().map(|s| s.as_str()).collect::<Vec<_>>(),

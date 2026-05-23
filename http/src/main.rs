@@ -90,7 +90,7 @@ async fn main() {
 
     println!("listening on :3000\n");
     println!("  {:<8} http://localhost:3000{}", "GET", "/users");
-    println!("           ?id=1&name=hurley&is_active=true");
+    println!("           ?id=1&name=wurley&is_active=true");
     println!("           Accept: text/html | application/json");
     println!("           X-Request-Id: <any>");
     println!("           Authorization: Bearer <token>");

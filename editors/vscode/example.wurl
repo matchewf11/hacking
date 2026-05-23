@@ -1,0 +1,71 @@
+# Example Wurl test suite
+# Run with: WURL_BASE_URL=http://localhost:3000 wurl test example.wurl
+
+group auth
+  test "login returns 200"
+    POST /api/auth/login
+    body.username = "alice"
+    body.password = "secret"
+    assert status 200
+    assert body.token present
+    assert body.user.name equals "alice"
+    assert header.content-type contains "application/json"
+    assert cookie.session present
+    assert cookie.session.httponly present
+    assert duration lt 500
+  end
+
+  test "rejects bad credentials"
+    POST /api/auth/login
+    body.username = "alice"
+    body.password = "wrong"
+    assert not status 200
+    assert status 401
+    assert body.error present
+  end
+end
+
+group users
+  test "list users"
+    GET /api/users
+    assert status 200
+    assert body present
+    assert body.users present
+    assert body.users length gt 0
+    assert body.users[0].id present
+    assert body.users[0].name present
+  end
+
+  test "get specific user"
+    GET /api/users/1
+    assert status 200
+    assert body.id equals 1
+    assert body.name equals "alice"
+    assert body.email matches r"^[\w.]+@[\w.]+\.\w+$"
+    assert body.active equals true
+    assert body.deleted equals false
+    assert body.score gt 0
+    assert body.score lte 100
+  end
+
+  test "create user"
+    POST /api/users
+    body.name = "bob"
+    body.email = "bob@example.com"
+    body.role = "viewer"
+    assert status 201
+    assert body.id present
+    assert body.name equals "bob"
+    assert body.role not-equals "admin"
+    assert header.location starts-with "/api/users/"
+  end
+end
+
+group not-found
+  test "missing resource returns 404"
+    GET /api/users/99999
+    assert status 404
+    assert body.error contains "not found"
+    assert body.error not-contains "stack trace"
+  end
+end

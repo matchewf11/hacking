@@ -1,10 +1,10 @@
 mod cli;
 mod error;
-mod hurler;
+mod wurler;
 mod parser;
 mod preproc;
 mod execute;
 
 pub use cli::start;
 pub use error::Error;
-pub use hurler::Hurler;
+pub use wurler::Wurler;

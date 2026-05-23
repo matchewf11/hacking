@@ -1,0 +1,61 @@
+{
+  "name": "wurl-syntax",
+  "displayName": "Wurl",
+  "description": "Syntax highlighting for Wurl test suite files (.wurl) and Markdown fenced code blocks.",
+  "version": "0.1.0",
+  "publisher": "wurl",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "wurl",
+    "http",
+    "testing",
+    "api",
+    "syntax"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/wurl"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "wurl",
+        "aliases": [
+          "Wurl",
+          "wurl"
+        ],
+        "extensions": [
+          ".wurl"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/wurl-light.png",
+          "dark": "./icons/wurl-dark.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "wurl",
+        "scopeName": "source.wurl",
+        "path": "./syntaxes/wurl.tmLanguage.json"
+      },
+      {
+        "scopeName": "markdown.wurl.codeblock",
+        "path": "./syntaxes/wurl.markdown.tmLanguage.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.wurl": "wurl"
+        }
+      }
+    ]
+  }
+}

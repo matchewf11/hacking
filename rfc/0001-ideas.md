@@ -1,5 +1,5 @@
 
-## Hurl Cli Tool
+## Wurl Cli Tool
 
 The idea is to have a nicer interface for
 curl like requests.
@@ -13,20 +13,20 @@ Some Nice Builtins It will include:
 - take in stdin for chaining
 
 ```
-hurl get "https://foo.com/foo" --pretty-print
+wurl get "https://foo.com/foo" --pretty-print
 ```
 
 Need a nice way to hanlde paths, query args, and body
 
 Paths
 ```
-hurl get "https://foo.com" --path foo/bar
+wurl get "https://foo.com" --path foo/bar
 ```
 
 Query Args
 ```
-hurl get "https://foo.com" --args foo=1,bar=2
-hurl get "https://foo.com" -a foo=1,bar=2
+wurl get "https://foo.com" --args foo=1,bar=2
+wurl get "https://foo.com" -a foo=1,bar=2
 ```
 
 Body
@@ -35,5 +35,5 @@ Body
 = is strings
 foo.bar = foo // this is tables
 
-hurl post "http://foo.com" --json foo.bar=jimmy --json foo:=true
+wurl post "http://foo.com" --json foo.bar=jimmy --json foo:=true
 ```

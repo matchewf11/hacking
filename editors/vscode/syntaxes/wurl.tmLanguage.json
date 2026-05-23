@@ -1,0 +1,198 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Wurl",
+  "scopeName": "source.wurl",
+  "fileTypes": ["wurl"],
+  "patterns": [
+    { "include": "#line-comment" },
+    { "include": "#group-decl" },
+    { "include": "#test-decl" },
+    { "include": "#end-stmt" },
+    { "include": "#assert-stmt" },
+    { "include": "#request-stmt" },
+    { "include": "#body-param-stmt" },
+    { "include": "#include-stmt" }
+  ],
+  "repository": {
+
+    "line-comment": {
+      "name": "comment.line.number-sign.wurl",
+      "match": "#.*$"
+    },
+
+    "string": {
+      "name": "string.quoted.double.wurl",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.wurl", "match": "\\\\." }
+      ]
+    },
+
+    "regex-literal": {
+      "name": "string.regexp.wurl",
+      "begin": "r\"",
+      "end": "\""
+    },
+
+    "number": {
+      "name": "constant.numeric.decimal.wurl",
+      "match": "-?\\b\\d+(\\.\\d+)?\\b"
+    },
+
+    "boolean": {
+      "name": "constant.language.boolean.wurl",
+      "match": "\\b(true|false)\\b"
+    },
+
+    "null": {
+      "name": "constant.language.null.wurl",
+      "match": "\\bnull\\b"
+    },
+
+    "literal-value": {
+      "patterns": [
+        { "include": "#regex-literal" },
+        { "include": "#string" },
+        { "include": "#number" },
+        { "include": "#boolean" },
+        { "include": "#null" }
+      ]
+    },
+
+    "group-decl": {
+      "comment": "group <name>  or  group \"Quoted Name\"",
+      "begin": "^(\\s*)(group)\\b",
+      "end": "$",
+      "beginCaptures": {
+        "2": { "name": "keyword.control.group.wurl" }
+      },
+      "patterns": [
+        { "include": "#string" },
+        {
+          "name": "entity.name.section.group.wurl",
+          "match": "[^\\s\"]+"
+        }
+      ]
+    },
+
+    "test-decl": {
+      "comment": "test <name>  or  test \"Quoted Name\"",
+      "begin": "^(\\s*)(test)\\b",
+      "end": "$",
+      "beginCaptures": {
+        "2": { "name": "keyword.control.test.wurl" }
+      },
+      "patterns": [
+        { "include": "#string" },
+        {
+          "name": "entity.name.function.test.wurl",
+          "match": "[^\\s\"]+"
+        }
+      ]
+    },
+
+    "end-stmt": {
+      "match": "^\\s*(end)\\b\\s*$",
+      "captures": {
+        "1": { "name": "keyword.control.end.wurl" }
+      }
+    },
+
+    "assert-target": {
+      "comment": "Typed assert targets: status, body, body.path[0].field, header.name, cookie.name, duration",
+      "patterns": [
+        {
+          "match": "\\bstatus\\b",
+          "name": "support.type.property-name.status.wurl"
+        },
+        {
+          "match": "\\bduration\\b",
+          "name": "support.type.property-name.duration.wurl"
+        },
+        {
+          "comment": "body  or  body.path.to[0].field",
+          "match": "(body)((?:\\.[\\w-]+|\\[\\d+\\])*)",
+          "captures": {
+            "1": { "name": "support.type.property-name.body.wurl" },
+            "2": { "name": "variable.other.property.path.wurl" }
+          }
+        },
+        {
+          "comment": "header.content-type",
+          "match": "(header)((?:\\.[\\w-]+)+)?",
+          "captures": {
+            "1": { "name": "support.type.property-name.header.wurl" },
+            "2": { "name": "variable.other.property.header-name.wurl" }
+          }
+        },
+        {
+          "comment": "cookie.session  or  cookie.session.httponly",
+          "match": "(cookie)((?:\\.[\\w-]+)+)?",
+          "captures": {
+            "1": { "name": "support.type.property-name.cookie.wurl" },
+            "2": { "name": "variable.other.property.cookie-name.wurl" }
+          }
+        }
+      ]
+    },
+
+    "matcher-keyword": {
+      "comment": "All comparison / predicate matchers",
+      "name": "keyword.operator.matcher.wurl",
+      "match": "\\b(present|absent|empty|equals|eq|not-equals|neq|contains|not-contains|starts-with|ends-with|gt|gte|lt|lte|length|matches)\\b"
+    },
+
+    "not-keyword": {
+      "name": "keyword.operator.logical.not.wurl",
+      "match": "\\bnot\\b"
+    },
+
+    "assert-stmt": {
+      "comment": "assert [not] <target> [matcher [value]]",
+      "begin": "^(\\s*)(assert)\\b",
+      "end": "$",
+      "beginCaptures": {
+        "2": { "name": "keyword.control.assert.wurl" }
+      },
+      "patterns": [
+        { "include": "#not-keyword" },
+        { "include": "#assert-target" },
+        { "include": "#matcher-keyword" },
+        { "include": "#literal-value" }
+      ]
+    },
+
+    "request-stmt": {
+      "comment": "HTTP method line: GET /path  or  post /path  (case-insensitive via (?i) at start)",
+      "match": "(?i)^([ \\t]*)(get|post|put|patch|delete|head|options)\\b([ \\t]*(\\S+))?",
+      "captures": {
+        "2": { "name": "support.function.http-method.wurl" },
+        "4": { "name": "string.other.link.wurl" }
+      }
+    },
+
+    "body-param-stmt": {
+      "comment": "body.key = value  (request body parameters)",
+      "begin": "^(\\s*)(body\\.[\\w.\\[\\]]+)(\\s*)(=)(\\s*)",
+      "end": "$",
+      "beginCaptures": {
+        "2": { "name": "variable.parameter.body.wurl" },
+        "4": { "name": "keyword.operator.assignment.wurl" }
+      },
+      "patterns": [
+        { "include": "#literal-value" }
+      ]
+    },
+
+    "include-stmt": {
+      "comment": "include \"file.wurl\"",
+      "match": "^(\\s*)(include)\\b\\s+(.+)$",
+      "captures": {
+        "2": { "name": "keyword.control.include.wurl" },
+        "3": { "name": "string.other.include.wurl" }
+      }
+    }
+
+  }
+}

@@ -15,7 +15,7 @@ Before evaluating we need to:
 2. textually include other files
 
 ```
-include "foo.hurl"
+include "foo.wurl"
 replace FOO
 replace BAR 3
 

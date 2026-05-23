@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Wurl Markdown Injection",
+  "scopeName": "markdown.wurl.codeblock",
+  "injectionSelector": "L:text.html.markdown",
+  "patterns": [
+    { "include": "#fenced-wurl-block" }
+  ],
+  "repository": {
+    "fenced-wurl-block": {
+      "comment": "Matches ```wurl or ~~~wurl fenced code blocks in Markdown",
+      "begin": "(?:^|\\G)([ \\t]*)(```+|~~~+)[ \\t]*(wurl)[ \\t]*$",
+      "end": "(?:^|\\G)([ \\t]*)(\\2)[ \\t]*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced.markdown" },
+        "3": { "name": "entity.name.type.language.wurl" }
+      },
+      "endCaptures": {
+        "2": { "name": "punctuation.definition.fenced.markdown" }
+      },
+      "contentName": "meta.embedded.block.wurl",
+      "patterns": [
+        { "include": "source.wurl" }
+      ]
+    }
+  }
+}

@@ -1,9 +1,9 @@
 
-# RFC-003: Assertions in Hurl Test Suite
+# RFC-003: Assertions in Wurl Test Suite
 
 # Summary 
 
-This RFC defines the assertion system for the Hurl test suite. Assertions are the mechanism by which tests validate HTTP responses. This document covers the motivation for assertions, the full assertion syntax, supported targets, comparison operators, and example usage.
+This RFC defines the assertion system for the Wurl test suite. Assertions are the mechanism by which tests validate HTTP responses. This document covers the motivation for assertions, the full assertion syntax, supported targets, comparison operators, and example usage.
 
 # Motivation
 
@@ -15,7 +15,7 @@ When testing HTTP APIs, the most common need after making a request is to verify
  - Cookies - Were cookies set or cleared correctly?
  - Response timing - Did the request complete within acceptable bounds?
 
-Without a structured assertion system, users are forced to pipe output through jq, grep, awk, and shell conditionals - making tests fragile, hard to read, and difficult to parallelize. Hurl's assertion system is declarative, readable, and tightly integrated with the request lifecycle.
+Without a structured assertion system, users are forced to pipe output through jq, grep, awk, and shell conditionals - making tests fragile, hard to read, and difficult to parallelize. Wurl's assertion system is declarative, readable, and tightly integrated with the request lifecycle.
 
 # Terminology
 
@@ -233,7 +233,7 @@ assert cookie.session equals ${SESSION_TOKEN}
 # Full Example
 
 ```
-include "env.hurl"
+include "env.wurl"
 
 group "auth"
     test "login returns token"
@@ -292,7 +292,7 @@ end
 
 # Failure Output
 
-When an assertion fails, Hurl will output a clear diagnostic message:
+When an assertion fails, Wurl will output a clear diagnostic message:
 
 ```
 FAIL  auth > rejects invalid credentials
@@ -302,11 +302,11 @@ FAIL  auth > rejects invalid credentials
        at:       POST /auth/login  ->  401
 ```
 
-All assertions in a test are evaluated and reported - Hurl does not short-circuit on the first failure, giving a complete picture of what went wrong.
+All assertions in a test are evaluated and reported - Wurl does not short-circuit on the first failure, giving a complete picture of what went wrong.
 
 # Why Not Just Use Shell Pipes?
 
-Concern	Shell Pipes	Hurl Assertions
+Concern	Shell Pipes	Wurl Assertions
 Readability	Fragile one-liners	Declarative, self-documenting
 Parallel execution	Complex to orchestrate	Native, group-scoped
 Error messages	Cryptic exit codes	Rich diagnostics
@@ -327,4 +327,4 @@ Environment vars	Shell expansion only	Integrated ${} expansion
 
 # Conclusion
 
-Assertions are the core of Hurl's value as a testing tool. They transform ad-hoc shell scripting into a structured, readable, and parallelizable test suite. This RFC establishes a consistent, extensible syntax that covers the most common HTTP response validation needs while remaining approachable for new users.
+Assertions are the core of Wurl's value as a testing tool. They transform ad-hoc shell scripting into a structured, readable, and parallelizable test suite. This RFC establishes a consistent, extensible syntax that covers the most common HTTP response validation needs while remaining approachable for new users.
