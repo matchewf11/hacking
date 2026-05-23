@@ -1,23 +1,6 @@
 use serde_json::{Map, Value};
 
-struct Suite {
-    groups: Vec<Group>,
-}
-
-struct Group {
-    name: String,
-    tests: Vec<Test>,
-}
-
-struct Test {
-    name: String,
-    value: String,
-    asserts: Vec<String>,
-}
-
-pub fn parse_suite() -> Suite {
-    todo!();
-}
+pub mod suite;
 
 pub fn parse_json(inputs: &[&str]) -> Value {
     let mut val = Map::new();
@@ -98,44 +81,6 @@ fn parse_arr(input: &str) -> Value {
 mod tests {
     use super::*;
     use serde_json::json;
-
-    #[test]
-    fn test_parse_suite() {
-        let input = r#"
-group "auth"
-    test "returns authenticated user"
-        get "/foo";
-        assert status 200;
-        assert body.foo;
-    end
-    test "returns expected foo value"
-        get "/foo";
-        assert status 200;
-        assert body.foo "bar";
-    end
-end
-
-group "foo"
-    test "returns authenticated user"
-        get "/foo";
-        assert status 200;
-        assert body.foo;
-    end
-    test "returns expected foo value"
-        get "/foo";
-        assert status 200;
-        assert body.foo "bar";
-    end
-
-    test "returns authenticated user"
-        get "/foo";
-        assert status 200;
-        assert body.foo;
-    end
-
-end"#;
-
-    }
 
     #[test]
     fn test_parse_json() {
