@@ -2,99 +2,99 @@ hello from cook
 
 =============================================================
   WURL COOKBOOK
-  A declarative HTTP test suite — practical examples
+  Practical examples for the wurl CLI and test suite
 =============================================================
+
 
 -------------------------------------------------------------
 1. BASIC GET REQUEST
-   Fetch a resource, pretty-print the response, filter a
-   JSON field, and chain with query args.
+   Flags: --path, --query/-q, --headers, --cookies/-c
 -------------------------------------------------------------
 
-# Simple fetch with pretty-printing
-wurl get "https://api.example.com/users" --pretty-print
+# Simple GET
+wurl get "https://api.example.com/users"
 
-# Scoped path (avoids repeating the base URL)
-wurl get "https://api.example.com" --path users/42
+# Scoped path
+wurl get "https://api.example.com" --path /users/42
 
-# Query string args
-wurl get "https://api.example.com/search" --args q=alice,page=1,limit=20
-wurl get "https://api.example.com/search" -a q=alice,page=1,limit=20
+# Query args — repeat --query (or -q) for each param
+wurl get "https://api.example.com/search" --query q=alice --query page=1 --query limit=20
+wurl get "https://api.example.com/search" -q q=alice -q page=1
+
+# Custom request headers
+wurl get "https://api.example.com/data" \
+    --headers "Authorization=Bearer token123" \
+    --headers "Accept=application/json"
+
+# Send cookies
+wurl get "https://api.example.com/dashboard" --cookies "session=abc123" -c "theme=dark"
 
 
 -------------------------------------------------------------
-2. POST / PUT WITH A JSON BODY
-   := auto-converts values (booleans, numbers).
-   =  forces string.
+2. POST WITH A JSON BODY
+   = auto-converts: integers, booleans (true/false), null,
+     and arrays [item1, item2, ...].
    Dot notation builds nested objects.
+   Use --json / -j for each field.
 -------------------------------------------------------------
 
-# Create a user
+# Create a user (values are auto-typed)
 wurl post "https://api.example.com/users" \
-    --json name="Alice" \
-    --json email="alice@example.com" \
-    --json role="admin" \
-    --json active:=true \
-    --json age:=30
+    --json name=Alice \
+    --json email=alice@example.com \
+    --json role=admin \
+    --json active=true \
+    --json age=30
 
-# Nested object (foo.bar builds { "foo": { "bar": ... } })
+# Nested object — dot notation → { "user": { "name": ... } }
 wurl post "https://api.example.com/profiles" \
-    --json user.name="Alice" \
-    --json user.verified:=true \
-    --json settings.theme="dark"
+    --json user.name=Alice \
+    --json user.verified=true \
+    --json settings.theme=dark
 
-# Update (PUT)
-wurl put "https://api.example.com/users/42" \
-    --json role="member" \
-    --json active:=false
+# Array value
+wurl post "https://api.example.com/batch" \
+    --json ids=[1,2,3] \
+    --json flags=[true,false,null]
+
+# Short flag -j
+wurl post "https://api.example.com/items" -j name=Widget -j count=5
+
+# POST with path, query, and headers
+wurl post "https://api.example.com" \
+    --path /orders \
+    --json product=Widget \
+    --json qty=2 \
+    --headers "Authorization=Bearer token123" \
+    -q dry_run=true
 
 
 -------------------------------------------------------------
-3. AUTHENTICATION FLOW
-   Test login happy-path: status, JWT shape, secure cookie,
-   and response time. Then test the failure cases.
--------------------------------------------------------------
+3. TEST SUITE — STRUCTURE
+   From stdin:   cat suite.wurl | wurl test -
+   Heredoc:      wurl test - <<'EOF' ... EOF
 
-include "env.wurl"
-replace API_BASE
-replace TEST_PASSWORD
+   Groups contain tests; tests contain a request value and
+   any number of assert lines.
+-------------------------------------------------------------
 
 group "auth"
-    test "login returns a JWT and secure session cookie"
-        post "${API_BASE}/auth/login"
-            body.email = "alice@example.com"
-            body.password = ${TEST_PASSWORD}
+    test "login returns 200"
+        post "https://api.example.com/auth/login"
         assert status 200
         assert body.token present
-        assert body.token matches r"^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$"
-        assert header.content-type contains "json"
-        assert cookie.session present
-        assert cookie.session.httponly
-        assert cookie.session.secure
-        assert cookie.session.samesite equals "Strict"
         assert duration lt 800
     end
 
-    test "rejects wrong password"
-        post "${API_BASE}/auth/login"
-            body.email = "alice@example.com"
-            body.password = "wrong"
+    test "bad password returns 401"
+        post "https://api.example.com/auth/login"
         assert status 401
         assert body.error equals "invalid_credentials"
-        assert not body.token
-        assert not cookie.session present
+        assert not body.token present
     end
 
-    test "rejects missing fields"
-        post "${API_BASE}/auth/login"
-            body.email = "alice@example.com"
-        assert status 400
-        assert body.errors present
-        assert body.errors length gt 0
-    end
-
-    test "logout clears session cookie"
-        post "${API_BASE}/auth/logout"
+    test "logout clears session"
+        post "https://api.example.com/auth/logout"
         assert status 204
         assert body empty
         assert cookie.session absent
@@ -103,91 +103,165 @@ end
 
 
 -------------------------------------------------------------
-4. CRUD RESOURCE LIFECYCLE
-   Run create → read → update → delete sequentially inside
-   one group. Tests in the same group are ordered; tests
-   across groups run in parallel.
+4. ASSERT TARGETS
+   status | duration | body | body.<path> | body[<idx>]
+   header.<name> | cookie.<name> | cookie.<name>.<attr>
 -------------------------------------------------------------
 
-include "env.wurl"
-replace API_BASE
-replace ADMIN_TOKEN
+# Status code
+assert status 200
+assert not status 404
+
+# Raw response body
+assert body empty
+assert body contains "success"
+assert body equals "ok"
+
+# JSON field (dot-notation path)
+assert body.user.name equals "Alice"
+assert body.active true
+assert body.count gt 0
+assert body.score lte 100
+
+# Array indexing
+assert body.items[0].id present
+assert body.data[0].email present
+assert body[0].name equals "Alice"
+
+# Headers (name is lowercased automatically)
+assert header.content-type contains "json"
+assert header.x-request-id present
+assert not header.x-deprecated present
+
+# Cookies — name only, or name + attribute
+assert cookie.session present
+assert cookie.session equals "abc123"
+assert cookie.session.httponly
+assert cookie.session.secure
+assert cookie.session.samesite equals "Strict"
+assert cookie.tracking absent
+
+# Response time in milliseconds
+assert duration lt 500
+assert duration lte 1000
+
+
+-------------------------------------------------------------
+5. ALL MATCHERS
+-------------------------------------------------------------
+
+# Unary
+assert body.field present           # field exists / is truthy
+assert body.field absent            # field is missing
+assert body empty                   # body (or array/string) is empty
+
+# Equality — explicit keyword, shorthand, or implicit (bare value)
+assert body.role equals "admin"
+assert body.role eq "admin"
+assert body.role "admin"            # implicit equals
+assert body.count not-equals 0
+assert body.count neq 0
+
+# Numeric comparisons
+assert body.age gt 18
+assert body.age gte 18
+assert body.age lt 100
+assert body.age lte 99
+assert duration lt 500
+
+# String matchers
+assert body.name contains "ali"
+assert body.name not-contains "bot"
+assert body.name starts-with "Al"
+assert body.name ends-with "ce"
+assert header.content-type contains "application/json"
+
+# Array / string length
+assert body.items length 5          # exactly 5
+assert body.tags length gt 0        # at least 1
+assert body.tags length gte 2
+assert body.tags length lt 10
+assert body.tags length lte 20
+
+# Regex — r"..." literal
+assert body.email matches r"^[\w.+\-]+@[\w.\-]+\.[a-z]{2,}$"
+assert body.id    matches r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+assert header.content-type matches r"application/(json|problem\+json)"
+assert body.token matches r"^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$"
+
+
+-------------------------------------------------------------
+6. NEGATION — assert not <target> [matcher]
+-------------------------------------------------------------
+
+assert not status 404
+assert not body.password present
+assert not body.error
+assert not header.x-deprecated present
+assert not cookie.tracking present
+assert not body.user.name equals "root"
+assert not body.name contains "bot"
+assert not body.count not-equals 0
+
+
+-------------------------------------------------------------
+7. ASSERT VALUES
+   Quoted string:  "hello world"
+   Number:         200  3.14  0
+   Boolean:        true  false
+   Null:           null
+   Regex:          r"pattern"
+   Bare string:    admin  (unquoted single-word ident)
+-------------------------------------------------------------
+
+assert body.role "admin"            # bare string, implicit equals
+assert body.role equals admin       # same — bare ident parsed as string
+assert body.active true             # boolean
+assert body.count equals 0          # number
+assert body.field equals null       # null
+
+
+-------------------------------------------------------------
+8. FULL EXAMPLE: CRUD + PAGINATION
+-------------------------------------------------------------
 
 group "posts CRUD"
     test "create a post"
-        post "${API_BASE}/posts"
-            body.title = "Hello Wurl"
-            body.body  = "First post via wurl test suite."
-            body.published:=false
+        post "https://api.example.com/posts"
         assert status 201
         assert body.id present
-        assert body.title equals "Hello Wurl"
-        assert body.published false
+        assert body.title present
         assert header.location present
     end
 
     test "read the post back"
-        get "${API_BASE}/posts/1"
+        get "https://api.example.com/posts/1"
         assert status 200
         assert body.title equals "Hello Wurl"
-        assert body.author present
         assert not body.deleted
     end
 
-    test "update the post"
-        put "${API_BASE}/posts/1"
-            body.published:=true
-        assert status 200
-        assert body.published true
-        assert body.updated_at present
-    end
-
-    test "delete the post"
-        delete "${API_BASE}/posts/1"
-        assert status 204
-        assert body empty
-    end
-
     test "deleted post returns 404"
-        get "${API_BASE}/posts/1"
+        get "https://api.example.com/posts/99999"
         assert status 404
         assert body.error present
     end
 end
 
-
--------------------------------------------------------------
-5. PAGINATION & ARRAY ASSERTIONS
-   Validate list endpoints: shape of the envelope, first
-   item fields, length constraints, and link headers.
--------------------------------------------------------------
-
-include "env.wurl"
-replace API_BASE
-
-group "user list pagination"
-    test "first page returns expected shape"
-        get "${API_BASE}/users" -a page=1,per_page=10
+group "user list"
+    test "first page has expected shape"
+        get "https://api.example.com/users"
         assert status 200
         assert body.data present
         assert body.data length 10
         assert body.data[0].id present
         assert body.data[0].email present
         assert body.meta.total gt 0
-        assert body.meta.page equals 1
         assert header.link present
-        assert header.link contains "rel=\"next\""
-    end
-
-    test "last page has no next link"
-        get "${API_BASE}/users" -a page=999,per_page=10
-        assert status 200
-        assert body.data length lte 10
-        assert not header.link contains "rel=\"next\""
     end
 
     test "empty filter returns empty array"
-        get "${API_BASE}/users" -a role=nonexistent
+        get "https://api.example.com/users"
         assert status 200
         assert body.data empty
         assert body.meta.total equals 0
@@ -196,48 +270,20 @@ end
 
 
 -------------------------------------------------------------
-6. ENVIRONMENT-DRIVEN SETUP & REGEX VALIDATION
-   Pull secrets from env, validate complex field formats,
-   and assert on nested structures and response timing.
+9. STDIN USAGE
 -------------------------------------------------------------
 
-include "common.wurl"
-replace BASE_URL          # pulled from env if no value given
-replace EXPECTED_ORG
-replace 5 MAX_LATENCY_MS  # override with literal value
+# Pipe a file
+cat my_tests.wurl | wurl test -
 
-group "profile validation"
-    test "profile fields pass format checks"
-        get "${BASE_URL}/me"
+# Heredoc inline
+wurl test - <<'EOF'
+group smoke
+    test homepage is up
+        get "https://example.com"
         assert status 200
-
-        # string equality via env var
-        assert body.org equals ${EXPECTED_ORG}
-
-        # email format
-        assert body.email matches r"^[\w.+\-]+@[\w.\-]+\.[a-z]{2,}$"
-
-        # UUID v4
-        assert body.id matches r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-
-        # sensitive fields must be absent
-        assert not body.password
-        assert not body.password_hash
-
-        # timestamps present
-        assert body.created_at present
-        assert body.updated_at present
-
-        # nested boolean
-        assert body.settings.notifications.email true
-
-        # performance budget
-        assert duration lte ${MAX_LATENCY_MS}
-    end
-
-    test "content-type is always JSON"
-        get "${BASE_URL}/me"
-        assert header.content-type matches r"application/(json|problem\+json)"
-        assert not header.x-deprecated present
+        assert header.content-type present
+        assert duration lt 2000
     end
 end
+EOF
