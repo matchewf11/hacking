@@ -14,7 +14,7 @@ Before evaluating we need to:
     - if no value is given, then it pulls from the env
 2. textually include other files
 
-```
+```wurl
 include "foo.wurl"
 replace FOO
 replace BAR 3

@@ -28,7 +28,7 @@ Without a structured assertion system, users are forced to pipe output through j
 
 The general form of an assertion is:
 
-```
+```wurl
 assert <target> [<matcher> [<value>]]
 ```
 
@@ -41,13 +41,13 @@ assert <target> [<matcher> [<value>]]
 
 ## Status Code
 
-```
+```wurl
 assert status <code>
 ```
 
 Asserts the HTTP response status code.
 
-```
+```wurl
 assert status 200
 assert status 404
 assert status 201
@@ -55,13 +55,13 @@ assert status 201
 
 ## Body (Raw)
 
-```
+```wurl
 assert body <matcher> [value]
 ```
 
 Asserts on the raw response body as a string.
 
-```
+```wurl
 assert body contains "success"
 assert body equals "ok"
 assert body empty
@@ -70,7 +70,7 @@ assert body empty
 ## Body (JSON Path)
 text
 
-```
+```wurl
 assert body.<path> [matcher] [value]
 ```
 
@@ -78,7 +78,7 @@ JSON paths use dot notation. Array indices are accessed with bracket notation.
 
 ### Existence check - asserts the key is present and non-null
 
-```
+```wurl
 assert body.user
 assert body.user.name
 assert body.items[0]
@@ -86,41 +86,41 @@ assert body.items[0]
 
 ### Equality
 
-```
+```wurl
 assert body.user.name "alice"
 assert body.status "active"
 ```
 
 ### Numeric
 
-```
+```wurl
 assert body.count equals 3
 assert body.score gt 90
 ```
 
 ### Boolean
 
-```
+```wurl
 assert body.enabled true
 assert body.deleted false
 ```
 
 ### Array length
 
-```
+```wurl
 assert body.items length 5
 assert body.tags length gt 0
 ```
 
 ### Headers
 
-```
+```wurl
 assert header.<name> [matcher] [value]
 ```
 
 Header names are case-insensitive.
 
-```
+```wurl
 assert header.content-type
 assert header.content-type equals "application/json"
 assert header.content-type contains "json"
@@ -130,7 +130,7 @@ assert header.x-deprecated absent
 
 # Cookies
 
-```
+```wurl
 assert cookie.<name> [matcher] [value]
 assert cookie.<name>.<attribute>
 ```
@@ -139,14 +139,14 @@ Checks cookies set by the response via `Set-Cookie`.
 
 ## Existence
 
-```
+```wurl
 assert cookie.session
 assert cookie.session present
 ```
 
 ## Value
 
-```
+```wurl
 assert cookie.session equals "abc123"
 ```
 
@@ -161,19 +161,19 @@ assert cookie.session.samesite equals "Strict"
 
 ## Absence
 
-```
+```wurl
 assert cookie.tracking absent
 ```
 
 # Response Time
 
-```
+```wurl
 assert duration <matcher> <value>
 ```
 
 Value is in milliseconds.
 
-```
+```wurl
 assert duration lt 500
 assert duration lte 1000
 ```
@@ -201,7 +201,7 @@ When no matcher is provided, the assertion defaults to a truthiness check - the 
 
 # Regex Matching
 
-```
+```wurl
 assert body.email matches r"^[\w.]+@[\w.]+\.[a-z]{2,}$"
 assert header.content-type matches r"application/(json|xml)"
 ```
@@ -212,7 +212,7 @@ Regex values are prefixed with r and wrapped in double quotes.
 
 Any assertion can be negated with not:
 
-```
+```wurl
 assert not status 404
 assert not body.error
 assert not header.x-deprecated present
@@ -224,7 +224,7 @@ assert not body.user.name equals "root"
 
 Assertion values support environment variable expansion using ${} syntax:
 
-```
+```wurl
 assert body.user.id equals ${EXPECTED_USER_ID}
 assert body.org equals ${ORG_NAME}
 assert cookie.session equals ${SESSION_TOKEN}
@@ -232,7 +232,7 @@ assert cookie.session equals ${SESSION_TOKEN}
 
 # Full Example
 
-```
+```wurl
 include "env.wurl"
 
 group "auth"

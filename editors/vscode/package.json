@@ -3,7 +3,7 @@
   "displayName": "Wurl",
   "description": "Syntax highlighting for Wurl test suite files (.wurl) and Markdown fenced code blocks.",
   "version": "0.1.0",
-  "publisher": "wurl",
+  "publisher": "quienten",
   "license": "MIT",
   "engines": {
     "vscode": "^1.74.0"
@@ -20,7 +20,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/wurl"
+    "url": "https://github.com/matchewf11/hacking"
   },
   "contributes": {
     "languages": [
@@ -33,11 +33,7 @@
         "extensions": [
           ".wurl"
         ],
-        "configuration": "./language-configuration.json",
-        "icon": {
-          "light": "./icons/wurl-light.png",
-          "dark": "./icons/wurl-dark.png"
-        }
+        "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [

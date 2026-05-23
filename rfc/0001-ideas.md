@@ -12,7 +12,7 @@ Some Nice Builtins It will include:
 - json extracter
 - take in stdin for chaining
 
-```
+``wurl
 wurl get "https://foo.com/foo" --pretty-print
 ```
 
