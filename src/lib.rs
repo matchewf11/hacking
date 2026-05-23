@@ -1,4 +1,4 @@
-mod cli;
+pub(crate) mod cli;
 mod error;
 mod wurler;
 mod parser;

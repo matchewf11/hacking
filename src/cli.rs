@@ -1,14 +1,129 @@
 use crate::{
     Error, Wurler,
-    wurler::Wo,
+    execute::run_tests,
     parser::{json::parse_json, suite::parse},
     preproc::preproc,
-    execute::run_tests,
+    wurler::Wo,
 };
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use std::io::{self, Read};
 
 // <https://docs.rs/clap/latest/clap/_cookbook/git_derive/index.html>
+
+// ── Shared request flags ───────────────────────────────────────────────────────
+
+/// Flags common to every HTTP request.
+///
+/// Derived as [`Args`] so it can be embedded with `#[command(flatten)]` in both
+/// CLI subcommands and [`TestRequest`] (the test-suite parser).  Keeping the
+/// definition in one place guarantees that the same flag names, short aliases,
+/// and parsing rules apply everywhere.
+#[derive(Args, Clone)]
+pub(crate) struct RequestFlags {
+    /// URL to request (may be a bare host — `http://` is prepended if needed)
+    pub(crate) base: String,
+
+    /// Path to append to the URL
+    #[arg(short, long)]
+    pub(crate) path: Option<String>,
+
+    /// Query args as `key=value` (repeat for multiple)
+    #[arg(short = 'q', long)]
+    pub(crate) query: Vec<String>,
+
+    /// Request headers as `key:value` (repeat for multiple)
+    #[arg(long)]
+    pub(crate) headers: Vec<String>,
+
+    /// Cookies to send as `key=value` (repeat for multiple)
+    #[arg(short, long)]
+    pub(crate) cookies: Vec<String>,
+
+    /// JSON body fields as `key=value` — dot notation builds nested objects,
+    /// values are auto-typed (numbers, booleans, null, arrays).
+    /// Repeat for multiple fields. (repeat for multiple)
+    #[arg(short, long)]
+    pub(crate) json: Vec<String>,
+}
+
+// ── Test-suite request parser ──────────────────────────────────────────────────
+
+/// Parses a single request line from a `.wurl` test file.
+///
+/// The format mirrors the CLI exactly:
+/// ```text
+/// <method> <url> [--path <p>] [--query <k=v>]... [--json <k=v>]...
+///                [--headers <k:v>]... [--cookies <k=v>]...
+/// ```
+/// Because this reuses [`RequestFlags`], every flag name, short alias, and
+/// value-parsing rule is shared with `wurl get` / `wurl post` on the CLI.
+#[derive(Parser)]
+#[command(no_binary_name = true)]
+pub(crate) struct TestRequest {
+    /// HTTP method: get, post, put, patch, delete
+    pub(crate) method: String,
+    #[command(flatten)]
+    pub(crate) args: RequestFlags,
+}
+
+impl TestRequest {
+    /// Parse a raw test-value string (the tokens stored between the test name
+    /// and the first `assert`/`end` by the suite parser) into a typed request.
+    pub(crate) fn parse_str(value: &str) -> Result<Self, String> {
+        let tokens = shell_split(value);
+        Self::try_parse_from(tokens).map_err(|e| e.to_string())
+    }
+}
+
+/// Split a string into argv-style tokens, handling double-quoted strings and
+/// backslash escapes inside them.
+///
+/// `get "https://api.example.com/users" --query page=1`
+/// → `["get", "https://api.example.com/users", "--query", "page=1"]`
+pub(crate) fn shell_split(s: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut chars = s.chars().peekable();
+
+    loop {
+        // Skip whitespace between tokens.
+        while chars.peek().map(|c| c.is_whitespace()).unwrap_or(false) {
+            chars.next();
+        }
+
+        match chars.peek() {
+            None => break,
+            Some(&'"') => {
+                chars.next(); // consume opening "
+                let mut tok = String::new();
+                loop {
+                    match chars.next() {
+                        None | Some('"') => break,
+                        Some('\\') => {
+                            if let Some(c) = chars.next() {
+                                tok.push(c);
+                            }
+                        }
+                        Some(c) => tok.push(c),
+                    }
+                }
+                tokens.push(tok);
+            }
+            _ => {
+                let mut tok = String::new();
+                while chars.peek().map(|c| !c.is_whitespace()).unwrap_or(false) {
+                    tok.push(chars.next().unwrap());
+                }
+                if !tok.is_empty() {
+                    tokens.push(tok);
+                }
+            }
+        }
+    }
+
+    tokens
+}
+
+// ── CLI ────────────────────────────────────────────────────────────────────────
 
 /// A better curl CLI
 #[derive(Parser)]
@@ -20,121 +135,74 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Get a url
+    /// Make a GET request
     Get {
-        /// Base to the url
-        base: String,
-
-        /// Whether or not to pretty pring the output
-        // #[arg(short, long)]
-        // format: bool,
-
-        /// --path "/foo/bar"
-        #[arg(short, long)]
-        path: Option<String>,
-
-        /// path args
-        /// Query Args
-        #[arg(short, long)]
-        query: Vec<String>,
-
-        /// headers
-        #[arg(long)]
-        headers: Vec<String>,
-        #[arg(short, long)]
-        cookies: Vec<String>,
+        #[command(flatten)]
+        args: RequestFlags,
     },
+    /// Make a POST request
+    Post {
+        #[command(flatten)]
+        args: RequestFlags,
+    },
+    /// Run a .wurl test suite (pass '-' to read from stdin)
     Test {
-        /// input
+        /// Path to the .wurl file, or '-' to read from stdin
         input: String,
     },
-    Post {
-        /// input
-        base: String,
-
-        /// input
-        #[arg(short, long)]
-        json: Vec<String>,
-
-        // /// input
-        // #[arg(short, long)]
-        // format: bool,
-        /// input
-        #[arg(short, long)]
-        path: Option<String>,
-
-        // path args
-        /// Query Args
-        #[arg(short, long)]
-        query: Vec<String>,
-
-        // headers
-        /// input
-        #[arg(long)]
-        headers: Vec<String>,
-
-        #[arg(short, long)]
-        cookies: Vec<String>,
-    },
+    /// Print the cookbook
     Cook,
 }
 
 pub async fn start() -> Result<(), Error> {
-    let args = Cli::parse();
+    let cli = Cli::parse();
     let wurler = Wurler::new();
 
-    match args.command {
-        Commands::Get {
-            base,
-            path,
-            // format,
-            query,
-            headers,
-            cookies,
-        } => {
+    match cli.command {
+        Commands::Get { args } => {
+            let url = format!("{}{}", args.base, args.path.unwrap_or_default());
             wurler
                 .get(Wo::new(
-                    format!("{}{}", base, path.unwrap_or_default()),
-                    Option::None,
-                    &query.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-                    &headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-                    &cookies.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    url,
+                    None,
+                    &args.query.iter().map(String::as_str).collect::<Vec<_>>(),
+                    &args.headers.iter().map(String::as_str).collect::<Vec<_>>(),
+                    &args.cookies.iter().map(String::as_str).collect::<Vec<_>>(),
                 )?)
                 .await?;
         }
-        Commands::Test { input } => {
 
-            let input = if &input == "-" {
-                let mut input = String::new();
-                io::stdin().read_to_string(&mut input).unwrap();
-                input
+        Commands::Post { args } => {
+            let body = if args.json.is_empty() {
+                String::new()
+            } else {
+                parse_json(&args.json.iter().map(String::as_str).collect::<Vec<_>>()).to_string()
+            };
+            let url = format!("{}{}", args.base, args.path.unwrap_or_default());
+            wurler
+                .post(Wo::new(
+                    url,
+                    Some(body),
+                    &args.query.iter().map(String::as_str).collect::<Vec<_>>(),
+                    &args.headers.iter().map(String::as_str).collect::<Vec<_>>(),
+                    &args.cookies.iter().map(String::as_str).collect::<Vec<_>>(),
+                )?)
+                .await?;
+        }
+
+        Commands::Test { input } => {
+            let input = if input == "-" {
+                let mut buf = String::new();
+                io::stdin().read_to_string(&mut buf).unwrap();
+                buf
             } else {
                 input
             };
-
             run_tests(parse(&preproc(&input)).unwrap()).await?;
         }
-        Commands::Post {
-            base,
-            path,
-            json,
-            // format,
-            query,
-            headers,
-            cookies,
-        } => {
-            let body = parse_json(&json.iter().map(|s| s.as_str()).collect::<Vec<_>>()).to_string();
-            wurler
-                .post(Wo::new(
-                    format!("{}{}", base, path.unwrap_or_default()),
-                    Option::Some(body),
-                    &query.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-                    &headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-                    &cookies.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-                )?)
-                .await?;
-        }
+
         Commands::Cook => println!("{}", include_str!("cookbook.txt")),
     }
+
     Ok(())
 }

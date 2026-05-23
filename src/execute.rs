@@ -5,6 +5,7 @@ use serde_json::Value;
 
 use crate::{
     Error,
+    cli::TestRequest,
     parser::{
         json::parse_json,
         suite::{
@@ -120,18 +121,62 @@ async fn run_group(client: Client, base: String, group: Group) -> GroupResult {
 // ── Single test ───────────────────────────────────────────────────────────────
 
 async fn run_test(client: &Client, base: &str, test: &Test) -> Result<(), Vec<String>> {
-    let (method, path, body) = parse_request(&test.value)
+    // Parse the test value string using the same clap flags as the CLI so that
+    // `get "url" --query k=v --headers "Auth:tok"` works identically in both
+    // test files and on the command line.
+    let cmd = TestRequest::parse_str(&test.value)
         .map_err(|e| vec![format!("request parse error: {e}")])?;
 
-    let url = if path.starts_with("http://") || path.starts_with("https://") {
-        path
+    let method = str_to_method(&cmd.method)
+        .map_err(|e| vec![e])?;
+
+    // Resolve URL: absolute wins; otherwise prefix with the base URL env var.
+    let raw_url = format!("{}{}", cmd.args.base, cmd.args.path.unwrap_or_default());
+    let url = if raw_url.starts_with("http://") || raw_url.starts_with("https://") {
+        raw_url
     } else {
-        format!("{base}{path}")
+        format!("{base}{raw_url}")
+    };
+
+    // Build JSON body from --json flags (same parse_json used by the CLI).
+    let body = if cmd.args.json.is_empty() {
+        None
+    } else {
+        let refs: Vec<&str> = cmd.args.json.iter().map(String::as_str).collect();
+        Some(parse_json(&refs))
     };
 
     let started = Instant::now();
 
     let mut req = client.request(method, &url);
+
+    // ── Query params: --query key=value ──────────────────────────────────────
+    let query_pairs: Vec<(&str, &str)> = cmd.args.query
+        .iter()
+        .filter_map(|s| s.split_once('='))
+        .collect();
+    if !query_pairs.is_empty() {
+        req = req.query(&query_pairs);
+    }
+
+    // ── Request headers: --headers key:value ─────────────────────────────────
+    for h in &cmd.args.headers {
+        if let Some((k, v)) = h.split_once(':') {
+            req = req.header(k.trim(), v.trim());
+        }
+    }
+
+    // ── Cookies: --cookies key=value → Cookie: k1=v1; k2=v2 ─────────────────
+    let cookie_str: String = cmd.args.cookies
+        .iter()
+        .filter_map(|c| c.split_once('=').map(|(k, v)| format!("{k}={v}")))
+        .collect::<Vec<_>>()
+        .join("; ");
+    if !cookie_str.is_empty() {
+        req = req.header("Cookie", cookie_str);
+    }
+
+    // ── Body ─────────────────────────────────────────────────────────────────
     if let Some(body_json) = body {
         req = req
             .header("Content-Type", "application/json")
@@ -200,97 +245,15 @@ async fn run_test(client: &Client, base: &str, test: &Test) -> Result<(), Vec<St
 
 // ── Request parsing ───────────────────────────────────────────────────────────
 
-/// Parse a test's value string into (method, path, optional JSON body).
-///
-/// Value format: `<method> "<path>" [body.<key> = <value> ...]`
-fn parse_request(value: &str) -> Result<(Method, String, Option<Value>), String> {
-    let tokens = tokenize(value);
-    let mut iter = tokens.iter();
-
-    let method_str = iter.next().ok_or("missing method")?;
-    let path = iter.next().ok_or("missing path")?.clone();
-
-    let method = match method_str.to_lowercase().as_str() {
-        "get" => Method::GET,
-        "post" => Method::POST,
-        "put" => Method::PUT,
-        "patch" => Method::PATCH,
-        "delete" => Method::DELETE,
-        other => return Err(format!("unknown method: {other}")),
-    };
-
-    // Parse body params: `body.<key> = <value>` triplets
-    let rest: Vec<&str> = iter.map(|s| s.as_str()).collect();
-    let body = parse_body_params(&rest);
-
-    Ok((method, path, body))
-}
-
-/// Re-tokenize a value string, stripping quotes from quoted tokens.
-fn tokenize(s: &str) -> Vec<String> {
-    let mut tokens = Vec::new();
-    let mut chars = s.chars().peekable();
-
-    loop {
-        while chars.peek().map(|c| c.is_whitespace()).unwrap_or(false) {
-            chars.next();
-        }
-        match chars.peek() {
-            None => break,
-            Some(&'"') => {
-                chars.next(); // consume opening "
-                let mut tok = String::new();
-                loop {
-                    match chars.next() {
-                        None | Some('"') => break,
-                        Some('\\') => {
-                            if let Some(c) = chars.next() {
-                                tok.push(c);
-                            }
-                        }
-                        Some(c) => tok.push(c),
-                    }
-                }
-                tokens.push(tok);
-            }
-            _ => {
-                let mut tok = String::new();
-                while chars.peek().map(|c| !c.is_whitespace()).unwrap_or(false) {
-                    tok.push(chars.next().unwrap());
-                }
-                if !tok.is_empty() {
-                    tokens.push(tok);
-                }
-            }
-        }
-    }
-
-    tokens
-}
-
-/// Parse `body.<key> = <value>` triplets into a JSON object.
-fn parse_body_params(tokens: &[&str]) -> Option<Value> {
-    let mut pairs: Vec<String> = Vec::new();
-    let mut i = 0;
-
-    while i + 2 <= tokens.len() {
-        if tokens[i + 1] == "=" {
-            // Strip the `body.` prefix if present
-            let key = tokens[i].strip_prefix("body.").unwrap_or(tokens[i]);
-            let val = tokens[i + 2];
-            pairs.push(format!("{key}={val}"));
-            i += 3;
-        } else {
-            i += 1;
-        }
-    }
-
-    if pairs.is_empty() {
-        None
-    } else {
-        Some(parse_json(
-            &pairs.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-        ))
+/// Convert a method name string to a [`reqwest::Method`].
+fn str_to_method(s: &str) -> Result<Method, String> {
+    match s.to_lowercase().as_str() {
+        "get" => Ok(Method::GET),
+        "post" => Ok(Method::POST),
+        "put" => Ok(Method::PUT),
+        "patch" => Ok(Method::PATCH),
+        "delete" => Ok(Method::DELETE),
+        other => Err(format!("unknown method: {other}")),
     }
 }
 
