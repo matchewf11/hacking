@@ -21,13 +21,13 @@ use std::io::{self, Read};
      .'          '.
     /   O      O   \
    :                :
-   |    \     /     |    HHHH   U   U   RRRR   LL
-   :     '---'      :    H   H  U   U   R   R  L 
+   |    \     /     |    H  H   U   U   RRRR   L
+   :     '---'      :    H  H   U   U   R   R  L
     \              /     HHHH   U   U   RRRR   L
-     '.          .'     H   H  U   U   R  R   L
-       '-......-'       H   H  UUUUU   R   R  LLLLL
+     '.          .'      H  H   U   U   R  R   L
+       '-......-'        H  H   UUUUU   R   R  LLLLL
               |
-             _|_ 
+             _|_
             /   \
            |  ~  |  <--- HURL
             \___/
