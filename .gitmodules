@@ -1,0 +1,3 @@
+[submodule "editors/nvim"]
+	path = editors/nvim
+	url = git@github.com:antnay/wurl.nvim.git
