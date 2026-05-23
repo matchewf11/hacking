@@ -4,11 +4,7 @@ use colored_json::ToColoredJson;
 use reqwest::{Client, Method, RequestBuilder};
 use serde_json::Value;
 
-use crate::{
-    Error,
-    cli::RequestFlags,
-    parser::json::parse_json,
-};
+use crate::{Error, cli::RequestFlags, parser::json::parse_json};
 
 // ── Response types ────────────────────────────────────────────────────────────
 
@@ -60,7 +56,10 @@ impl Wurler {
         let req = self.build_request(method, url, flags);
 
         let started = Instant::now();
-        let resp = req.send().await.map_err(|e| Error::Http(url.to_string(), e))?;
+        let resp = req
+            .send()
+            .await
+            .map_err(|e| Error::Http(url.to_string(), e))?;
         let duration_ms = started.elapsed().as_millis();
 
         let status = resp.status().as_u16();
@@ -69,7 +68,12 @@ impl Wurler {
         let headers: HashMap<String, String> = resp
             .headers()
             .iter()
-            .map(|(k, v)| (k.as_str().to_lowercase(), v.to_str().unwrap_or("").to_string()))
+            .map(|(k, v)| {
+                (
+                    k.as_str().to_lowercase(),
+                    v.to_str().unwrap_or("").to_string(),
+                )
+            })
             .collect();
 
         // Parse every Set-Cookie header into a structured cookie.
@@ -180,4 +184,302 @@ fn parse_set_cookie(raw: &str) -> (String, ParsedCookie) {
     }
 
     (name, ParsedCookie { value, attributes })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Wurler;
+    use crate::cli::RequestFlags;
+    use reqwest::Method;
+
+    fn wurler() -> Wurler {
+        Wurler::new()
+    }
+
+    fn flags(base: &str) -> RequestFlags {
+        RequestFlags {
+            base: base.into(),
+            path: None,
+            query: vec![],
+            headers: vec![],
+            cookies: vec![],
+            json: vec![],
+        }
+    }
+
+    // GET /users
+    #[tokio::test]
+    async fn get_users() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users".into()),
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::GET, "http://localhost:3000/users", &f)
+            .await
+            .unwrap();
+        assert_eq!(res.status, 200);
+        assert!(res.body_json.unwrap()["data"].as_array().unwrap().len() > 0);
+    }
+
+    // GET /users filtered by id
+    #[tokio::test]
+    async fn get_users_filtered_by_id() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users".into()),
+            query: vec!["id=1".into()],
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::GET, "http://localhost:3000/users", &f)
+            .await
+            .unwrap();
+        let json = res.body_json.unwrap();
+        let data = json["data"].as_array().unwrap();
+        assert_eq!(data.len(), 1);
+        assert_eq!(data[0]["id"], 1);
+    }
+
+    // GET /users filtered by name
+    #[tokio::test]
+    async fn get_users_filtered_by_name() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users".into()),
+            query: vec!["name=freddy".into()],
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::GET, "http://localhost:3000/users", &f)
+            .await
+            .unwrap();
+        let json = res.body_json.unwrap();
+        let data = json["data"].as_array().unwrap();
+        assert_eq!(data.len(), 1);
+        assert_eq!(data[0]["name"], "freddy");
+    }
+
+    // GET /users filtered by active
+    #[tokio::test]
+    async fn get_users_filtered_by_active() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users".into()),
+            query: vec!["is_active=false".into()],
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::GET, "http://localhost:3000/users", &f)
+            .await
+            .unwrap();
+        let json = res.body_json.unwrap();
+        let data = json["data"].as_array().unwrap();
+        assert!(data.iter().all(|u| u["is_active"] == false));
+    }
+
+    // GET /users with Accept header
+    #[tokio::test]
+    async fn get_users_json_accept() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users".into()),
+            headers: vec!["Accept: application/json".into()],
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::GET, "http://localhost:3000/users", &f)
+            .await
+            .unwrap();
+        assert!(res.body_json.unwrap()["data"].is_array());
+    }
+
+    // GET /users with X-Request-Id
+    #[tokio::test]
+    async fn get_users_with_request_id() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users".into()),
+            headers: vec!["X-Request-Id: test-123".into()],
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::GET, "http://localhost:3000/users", &f)
+            .await
+            .unwrap();
+        assert_eq!(res.body_json.unwrap()["meta"]["x_request_id"], "test-123");
+    }
+
+    // GET /users with Authorization
+    #[tokio::test]
+    async fn get_users_with_auth() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users".into()),
+            headers: vec!["Authorization: Bearer my-token-123".into()],
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::GET, "http://localhost:3000/users", &f)
+            .await
+            .unwrap();
+        assert_eq!(
+            res.body_json.unwrap()["meta"]["authorization"],
+            "Bearer my-token-123"
+        );
+    }
+
+    // GET /users/{id}
+    #[tokio::test]
+    async fn get_user_by_id() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users/1".into()),
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::GET, "http://localhost:3000/users/1", &f)
+            .await
+            .unwrap();
+        let json = res.body_json.unwrap();
+        assert_eq!(json["data"]["id"], 1);
+        assert_eq!(json["data"]["name"], "freddy");
+    }
+
+    // POST /users
+    #[tokio::test]
+    async fn post_user() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users".into()),
+            json: vec![
+                "name=golden_freddy".into(),
+                "age=30".into(),
+                "is_active=true".into(),
+            ],
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::POST, "http://localhost:3000/users", &f)
+            .await
+            .unwrap();
+        let json = res.body_json.unwrap();
+        assert_eq!(json["method"], "POST");
+        assert_eq!(json["body"]["name"], "golden_freddy");
+        assert_eq!(json["data"]["created"], true);
+    }
+
+    // PUT /users/{id}
+    #[tokio::test]
+    async fn put_user() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users/1".into()),
+            json: vec![
+                "name=dark_freddy".into(),
+                "age=70".into(),
+                "is_active=false".into(),
+            ],
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::PUT, "http://localhost:3000/users/1", &f)
+            .await
+            .unwrap();
+        let json = res.body_json.unwrap();
+        assert_eq!(json["method"], "PUT");
+        assert_eq!(json["body"]["name"], "dark_freddy");
+        assert_eq!(json["data"]["replaced"], true);
+    }
+
+    // PATCH /users/{id}
+    #[tokio::test]
+    async fn patch_user() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users/2".into()),
+            json: vec!["age=99".into()],
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::PATCH, "http://localhost:3000/users/2", &f)
+            .await
+            .unwrap();
+        let json = res.body_json.unwrap();
+        assert_eq!(json["method"], "PATCH");
+        assert_eq!(json["body"]["age"], 99);
+        assert_eq!(json["data"]["patched"], true);
+    }
+
+    // DELETE /users/{id}
+    #[tokio::test]
+    async fn delete_user() {
+        let w = wurler();
+        let f = flags("localhost:3000");
+        let res = w
+            .send(Method::DELETE, "http://localhost:3000/users/3", &f)
+            .await
+            .unwrap();
+        let json = res.body_json.unwrap();
+        assert_eq!(json["method"], "DELETE");
+        assert_eq!(json["data"]["deleted"], true);
+        assert_eq!(json["data"]["id"], 3);
+    }
+
+    // Cookies
+    #[tokio::test]
+    async fn get_with_cookies() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users".into()),
+            cookies: vec!["session=abc123".into(), "theme=dark".into()],
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::GET, "http://localhost:3000/users", &f)
+            .await
+            .unwrap();
+        let json = res.body_json.unwrap();
+        let cookie_header = json["headers"]["cookie"].as_str().unwrap();
+        assert!(cookie_header.contains("session=abc123"));
+        assert!(cookie_header.contains("theme=dark"));
+    }
+
+    // Multiple query + header combo
+    #[tokio::test]
+    async fn get_users_multiple_filters_and_headers() {
+        let w = wurler();
+        let f = RequestFlags {
+            path: Some("/users".into()),
+            query: vec!["id=1".into(), "is_active=true".into()],
+            headers: vec![
+                "X-Request-Id: combo-test".into(),
+                "Authorization: Bearer tok".into(),
+            ],
+            ..flags("localhost:3000")
+        };
+        let res = w
+            .send(Method::GET, "http://localhost:3000/users", &f)
+            .await
+            .unwrap();
+        let json = res.body_json.unwrap();
+        assert_eq!(json["meta"]["x_request_id"], "combo-test");
+        assert_eq!(json["query"]["id"], "1");
+        assert_eq!(json["query"]["is_active"], "true");
+    }
+
+    #[tokio::test]
+    async fn response_headers_collected() {
+        let w = wurler();
+        let res = w
+            .send(
+                Method::GET,
+                "http://localhost:3000/users",
+                &flags("localhost:3000"),
+            )
+            .await
+            .unwrap();
+        assert!(res.headers.contains_key("content-type"));
+    }
 }
