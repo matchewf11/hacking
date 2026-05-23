@@ -1,8 +1,8 @@
 use crate::{ Error, Hurler,
     hurler::Ho,
     parser::{json::parse_json, suite::parse},
-    test::run_tests,
     preproc::preproc,
+    execute::run_tests,
 };
 use clap::{Parser, Subcommand};
 use std::io::{self, Read};
@@ -103,7 +103,7 @@ pub async fn start() -> Result<(), Error> {
                 input
             };
 
-            run_tests(parse(&preproc(&input)).unwrap())?;
+            run_tests(parse(&preproc(&input)).unwrap()).await?;
         }
         Commands::Post {
             base,

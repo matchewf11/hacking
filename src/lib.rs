@@ -2,8 +2,8 @@ mod cli;
 mod error;
 mod hurler;
 mod parser;
-mod test;
 mod preproc;
+mod execute;
 
 pub use cli::start;
 pub use error::Error;
