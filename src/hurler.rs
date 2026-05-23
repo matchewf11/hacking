@@ -1,5 +1,5 @@
 use colored_json::ToColoredJson;
-use reqwest::{Client, RequestBuilder, header};
+use reqwest::{Client, RequestBuilder};
 use serde_json::Value;
 
 use crate::Error;

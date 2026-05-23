@@ -1,7 +1,4 @@
-use std::{
-    str::Bytes,
-    iter::Peekable,
-};
+use std::{iter::Peekable, str::Bytes};
 
 #[derive(Debug, PartialEq)]
 enum Token {
@@ -45,7 +42,9 @@ impl<'a> Iterator for Lexer<'a> {
             _ => {
                 let mut res = Vec::new();
 
-                while let Some(b) = self.0.peek() && !b.is_ascii_whitespace() {
+                while let Some(b) = self.0.peek()
+                    && !b.is_ascii_whitespace()
+                {
                     res.push(self.0.next().unwrap());
                 }
 
@@ -53,11 +52,12 @@ impl<'a> Iterator for Lexer<'a> {
             }
         };
 
-
         if res.is_empty() {
             None
         } else {
-            Some(Token::from_string(std::str::from_utf8(&res).unwrap().to_string()))
+            Some(Token::from_string(
+                std::str::from_utf8(&res).unwrap().to_string(),
+            ))
         }
     }
 }
@@ -107,7 +107,6 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_group(&mut self) -> Result<Option<Group>, String> {
-
         match self.0.peek() {
             None => return Ok(None),
             Some(Token::Group) => {
@@ -172,7 +171,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         loop {
             match self.0.peek() {
                 Some(Token::Assert) => {
-                   self.0.next();
+                    self.0.next();
                     let mut parts = Vec::new();
                     loop {
                         match self.0.peek() {
@@ -249,16 +248,11 @@ mod tests {
             Suite(vec![
                 Group {
                     name: "auth".to_string(),
-                    tests: vec![
-                        Test {
-                            name: "abc".to_string(),
-                            value: r#"get "/foo""#.to_string(),
-                            asserts: vec![
-                                "status 200".to_string(),
-                                "body.foo".to_string(),
-                            ],
-                        }
-                    ],
+                    tests: vec![Test {
+                        name: "abc".to_string(),
+                        value: r#"get "/foo""#.to_string(),
+                        asserts: vec!["status 200".to_string(), "body.foo".to_string(),],
+                    }],
                 },
                 Group {
                     name: "foo".to_string(),
@@ -266,10 +260,7 @@ mod tests {
                         Test {
                             name: "abc".to_string(),
                             value: r#"get "/foo""#.to_string(),
-                            asserts: vec![
-                                "status 200".to_string(),
-                                "body.foo".to_string(),
-                            ],
+                            asserts: vec!["status 200".to_string(), "body.foo".to_string(),],
                         },
                         Test {
                             name: "ab".to_string(),
@@ -315,4 +306,3 @@ mod tests {
         );
     }
 }
-

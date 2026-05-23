@@ -1,2 +1,2 @@
-pub mod suite;
 pub mod json;
+pub mod suite;

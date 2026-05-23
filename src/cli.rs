@@ -1,4 +1,9 @@
-use crate::{Error, Hurler, hurler::Ho, parser::{json::parse_json, suite::parse}, test::run_tests};
+use crate::{
+    Error, Hurler,
+    hurler::Ho,
+    parser::{json::parse_json, suite::parse},
+    test::run_tests,
+};
 use clap::{Parser, Subcommand};
 
 // <https://docs.rs/clap/latest/clap/_cookbook/git_derive/index.html>
@@ -19,31 +24,38 @@ enum Commands {
         base: String,
 
         /// Whether or not to pretty pring the output
-        #[arg(short, long)]
-        format: bool,
+        // #[arg(short, long)]
+        // format: bool,
 
         /// --path "/foo/bar"
         #[arg(short, long)]
         path: Option<String>,
 
-        // path args
+        /// path args
         /// Query Args
         #[arg(short, long)]
         query: Vec<String>,
 
-        // headers
+        /// headers
+        #[arg(long)]
         headers: Vec<String>,
     },
     Test {
+        /// input
         input: String,
     },
     Post {
+        /// input
         base: String,
+
+        /// input
+        #[arg(short, long)]
         json: Vec<String>,
 
-        #[arg(short, long)]
-        format: bool,
-
+        // /// input
+        // #[arg(short, long)]
+        // format: bool,
+        /// input
         #[arg(short, long)]
         path: Option<String>,
 
@@ -53,6 +65,8 @@ enum Commands {
         query: Vec<String>,
 
         // headers
+        /// input
+        #[arg(long)]
         headers: Vec<String>,
     },
 }
@@ -65,7 +79,7 @@ pub async fn start() -> Result<(), Error> {
         Commands::Get {
             base,
             path,
-            format,
+            // format,
             query,
             headers,
         } => {
@@ -85,7 +99,7 @@ pub async fn start() -> Result<(), Error> {
             base,
             path,
             json,
-            format,
+            // format,
             query,
             headers,
         } => {
