@@ -35,7 +35,11 @@ fn collect_replacements(input: &str) -> (String, HashMap<String, String>) {
 fn apply_replacements(input: &str, map: &HashMap<String, String>) -> String {
     let mut out = input.to_string();
 
-    for (k, v) in map {
+    let mut keys: Vec<&String> = map.keys().collect();
+    keys.sort();
+
+    for k in keys {
+        let v = &map[k];
         if out.contains(k) {
             out = out.replace(k, v);
         }
