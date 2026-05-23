@@ -1,11 +1,11 @@
 use crate::{
     Error, Wurler,
     execute::run_tests,
-    parser::{json::parse_json, suite::parse},
+    parser::suite::parse,
     preproc::preproc,
-    wurler::Wo,
 };
 use clap::{Args, Parser, Subcommand};
+use reqwest::Method;
 use std::io::{self, Read};
 
 // <https://docs.rs/clap/latest/clap/_cookbook/git_derive/index.html>
@@ -160,34 +160,21 @@ pub async fn start() -> Result<(), Error> {
 
     match cli.command {
         Commands::Get { args } => {
-            let url = format!("{}{}", args.base, args.path.unwrap_or_default());
-            wurler
-                .get(Wo::new(
-                    url,
-                    None,
-                    &args.query.iter().map(String::as_str).collect::<Vec<_>>(),
-                    &args.headers.iter().map(String::as_str).collect::<Vec<_>>(),
-                    &args.cookies.iter().map(String::as_str).collect::<Vec<_>>(),
-                )?)
-                .await?;
+            let url = format!("{}{}", args.base, args.path.clone().unwrap_or_default());
+            let resp = wurler.send(Method::GET, &url, &args).await?;
+            match &resp.body_json {
+                Some(json) => Wurler::pretty_print(json),
+                None => println!("{}", resp.body_raw),
+            }
         }
 
         Commands::Post { args } => {
-            let body = if args.json.is_empty() {
-                String::new()
-            } else {
-                parse_json(&args.json.iter().map(String::as_str).collect::<Vec<_>>()).to_string()
-            };
-            let url = format!("{}{}", args.base, args.path.unwrap_or_default());
-            wurler
-                .post(Wo::new(
-                    url,
-                    Some(body),
-                    &args.query.iter().map(String::as_str).collect::<Vec<_>>(),
-                    &args.headers.iter().map(String::as_str).collect::<Vec<_>>(),
-                    &args.cookies.iter().map(String::as_str).collect::<Vec<_>>(),
-                )?)
-                .await?;
+            let url = format!("{}{}", args.base, args.path.clone().unwrap_or_default());
+            let resp = wurler.send(Method::POST, &url, &args).await?;
+            match &resp.body_json {
+                Some(json) => Wurler::pretty_print(json),
+                None => println!("{}", resp.body_raw),
+            }
         }
 
         Commands::Test { input } => {

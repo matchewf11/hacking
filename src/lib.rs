@@ -7,4 +7,4 @@ mod execute;
 
 pub use cli::start;
 pub use error::Error;
-pub use wurler::Wurler;
+pub(crate) use wurler::Wurler;

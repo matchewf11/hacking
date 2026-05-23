@@ -1,68 +1,34 @@
-use std::{collections::HashMap, time::Instant};
-
-use reqwest::{Client, Method};
+use reqwest::Method;
 use serde_json::Value;
 
 use crate::{
-    Error,
+    Error, Wurler,
     cli::TestRequest,
-    parser::{
-        json::parse_json,
-        suite::{
-            Assert, AssertTarget, AssertValue, BodyTarget, Group, LengthArg, Matcher, PathSegment,
-            Suite, Test,
-        },
+    parser::suite::{
+        Assert, AssertTarget, AssertValue, BodyTarget, Group, LengthArg, Matcher, PathSegment,
+        Suite, Test,
     },
+    wurler::ResponseData,
 };
-
-// ── Response data ─────────────────────────────────────────────────────────────
-
-struct ResponseData {
-    status: u16,
-    headers: HashMap<String, String>,
-    cookies: HashMap<String, ParsedCookie>,
-    body_raw: String,
-    body_json: Option<Value>,
-    duration_ms: u128,
-}
-
-struct ParsedCookie {
-    value: String,
-    attributes: HashMap<String, Option<String>>,
-}
-
-// ── Results ───────────────────────────────────────────────────────────────────
-
-struct GroupResult {
-    name: String,
-    tests: Vec<TestResult>,
-}
-
-struct TestResult {
-    name: String,
-    passed: bool,
-    failures: Vec<String>,
-}
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 pub async fn run_tests(suite: Suite) -> Result<(), Error> {
-    let client = Client::new();
+    let wurler = Wurler::new();
     let base = std::env::var("WURL_BASE_URL").unwrap_or_default();
 
-    // Each group runs concurrently; tests within a group run sequentially so
-    // later tests can depend on state established by earlier ones.
+    // Groups run concurrently; tests within a group run sequentially so
+    // later tests can depend on state set up by earlier ones.
     let handles: Vec<_> = suite
         .0
         .into_iter()
         .map(|group| {
-            let client = client.clone();
+            let wurler = wurler.clone();
             let base = base.clone();
-            tokio::spawn(async move { run_group(client, base, group).await })
+            tokio::spawn(async move { run_group(wurler, base, group).await })
         })
         .collect();
 
-    // Join in spawn order so output stays in the original group order.
     let mut total = 0usize;
     let mut passed = 0usize;
 
@@ -95,10 +61,21 @@ pub async fn run_tests(suite: Suite) -> Result<(), Error> {
 
 // ── Group runner ──────────────────────────────────────────────────────────────
 
-async fn run_group(client: Client, base: String, group: Group) -> GroupResult {
+struct GroupResult {
+    name: String,
+    tests: Vec<TestResult>,
+}
+
+struct TestResult {
+    name: String,
+    passed: bool,
+    failures: Vec<String>,
+}
+
+async fn run_group(wurler: Wurler, base: String, group: Group) -> GroupResult {
     let mut tests = Vec::new();
     for test in &group.tests {
-        let tr = match run_test(&client, &base, test).await {
+        let tr = match run_test(&wurler, &base, test).await {
             Ok(()) => TestResult {
                 name: test.name.clone(),
                 passed: true,
@@ -120,120 +97,34 @@ async fn run_group(client: Client, base: String, group: Group) -> GroupResult {
 
 // ── Single test ───────────────────────────────────────────────────────────────
 
-async fn run_test(client: &Client, base: &str, test: &Test) -> Result<(), Vec<String>> {
-    // Parse the test value string using the same clap flags as the CLI so that
-    // `get "url" --query k=v --headers "Auth:tok"` works identically in both
+async fn run_test(wurler: &Wurler, base: &str, test: &Test) -> Result<(), Vec<String>> {
+    // Parse the value string with the same clap flags as the CLI, so
+    // `post "url" --json name=Alice --query page=1` works identically in
     // test files and on the command line.
     let cmd = TestRequest::parse_str(&test.value)
         .map_err(|e| vec![format!("request parse error: {e}")])?;
 
-    let method = str_to_method(&cmd.method)
-        .map_err(|e| vec![e])?;
+    let method = str_to_method(&cmd.method).map_err(|e| vec![e])?;
 
-    // Resolve URL: absolute wins; otherwise prefix with the base URL env var.
-    let raw_url = format!("{}{}", cmd.args.base, cmd.args.path.unwrap_or_default());
+    // Resolve URL: scheme-absolute URLs are used as-is; relative paths are
+    // prefixed with the WURL_BASE_URL env var.
+    let raw_url = format!("{}{}", cmd.args.base, cmd.args.path.clone().unwrap_or_default());
     let url = if raw_url.starts_with("http://") || raw_url.starts_with("https://") {
         raw_url
     } else {
         format!("{base}{raw_url}")
     };
 
-    // Build JSON body from --json flags (same parse_json used by the CLI).
-    let body = if cmd.args.json.is_empty() {
-        None
-    } else {
-        let refs: Vec<&str> = cmd.args.json.iter().map(String::as_str).collect();
-        Some(parse_json(&refs))
-    };
-
-    let started = Instant::now();
-
-    let mut req = client.request(method, &url);
-
-    // ── Query params: --query key=value ──────────────────────────────────────
-    let query_pairs: Vec<(&str, &str)> = cmd.args.query
-        .iter()
-        .filter_map(|s| s.split_once('='))
-        .collect();
-    if !query_pairs.is_empty() {
-        req = req.query(&query_pairs);
-    }
-
-    // ── Request headers: --headers key:value ─────────────────────────────────
-    for h in &cmd.args.headers {
-        if let Some((k, v)) = h.split_once(':') {
-            req = req.header(k.trim(), v.trim());
-        }
-    }
-
-    // ── Cookies: --cookies key=value → Cookie: k1=v1; k2=v2 ─────────────────
-    let cookie_str: String = cmd.args.cookies
-        .iter()
-        .filter_map(|c| c.split_once('=').map(|(k, v)| format!("{k}={v}")))
-        .collect::<Vec<_>>()
-        .join("; ");
-    if !cookie_str.is_empty() {
-        req = req.header("Cookie", cookie_str);
-    }
-
-    // ── Body ─────────────────────────────────────────────────────────────────
-    if let Some(body_json) = body {
-        req = req
-            .header("Content-Type", "application/json")
-            .body(body_json.to_string());
-    }
-
-    let resp = req
-        .send()
+    let resp = wurler
+        .send(method, &url, &cmd.args)
         .await
-        .map_err(|e| vec![format!("request failed: {e}")])?;
+        .map_err(|e| vec![e.to_string()])?;
 
-    let duration_ms = started.elapsed().as_millis();
-    let status = resp.status().as_u16();
-
-    // Collect headers before consuming body
-    let mut headers: HashMap<String, String> = HashMap::new();
-    for (k, v) in resp.headers() {
-        headers.insert(
-            k.as_str().to_lowercase(),
-            v.to_str().unwrap_or("").to_string(),
-        );
-    }
-
-    let set_cookie_headers: Vec<String> = resp
-        .headers()
-        .get_all("set-cookie")
-        .iter()
-        .filter_map(|v| v.to_str().ok().map(String::from))
-        .collect();
-
-    let mut cookies: HashMap<String, ParsedCookie> = HashMap::new();
-    for raw in &set_cookie_headers {
-        let (name, cookie) = parse_set_cookie(raw);
-        cookies.insert(name, cookie);
-    }
-
-    let body_raw = resp
-        .text()
-        .await
-        .map_err(|e| vec![format!("failed to read body: {e}")])?;
-
-    let body_json = serde_json::from_str::<Value>(&body_raw).ok();
-
-    let response = ResponseData {
-        status,
-        headers,
-        cookies,
-        body_raw,
-        body_json,
-        duration_ms,
-    };
-
-    // Evaluate all asserts; collect all failures rather than short-circuiting
+    // Collect all assertion failures rather than short-circuiting on the first.
     let failures: Vec<String> = test
         .asserts
         .iter()
-        .filter_map(|a| evaluate_assert(a, &response).err())
+        .filter_map(|a| evaluate_assert(a, &resp).err())
         .collect();
 
     if failures.is_empty() {
@@ -243,9 +134,8 @@ async fn run_test(client: &Client, base: &str, test: &Test) -> Result<(), Vec<St
     }
 }
 
-// ── Request parsing ───────────────────────────────────────────────────────────
+// ── Method parsing ────────────────────────────────────────────────────────────
 
-/// Convert a method name string to a [`reqwest::Method`].
 fn str_to_method(s: &str) -> Result<Method, String> {
     match s.to_lowercase().as_str() {
         "get" => Ok(Method::GET),
@@ -255,35 +145,6 @@ fn str_to_method(s: &str) -> Result<Method, String> {
         "delete" => Ok(Method::DELETE),
         other => Err(format!("unknown method: {other}")),
     }
-}
-
-// ── Cookie parsing ────────────────────────────────────────────────────────────
-
-/// Parse a raw `Set-Cookie` header value.
-fn parse_set_cookie(raw: &str) -> (String, ParsedCookie) {
-    let mut parts = raw.splitn(2, ';');
-    let name_val = parts.next().unwrap_or("").trim();
-    let attrs_raw = parts.next().unwrap_or("");
-
-    let (name, value) = name_val
-        .split_once('=')
-        .map(|(k, v)| (k.trim().to_string(), v.trim().to_string()))
-        .unwrap_or_else(|| (name_val.to_string(), String::new()));
-
-    let mut attributes: HashMap<String, Option<String>> = HashMap::new();
-    for part in attrs_raw.split(';') {
-        let part = part.trim();
-        if part.is_empty() {
-            continue;
-        }
-        if let Some((k, v)) = part.split_once('=') {
-            attributes.insert(k.trim().to_lowercase(), Some(v.trim().to_string()));
-        } else {
-            attributes.insert(part.to_lowercase(), None);
-        }
-    }
-
-    (name, ParsedCookie { value, attributes })
 }
 
 // ── Assertion evaluation ──────────────────────────────────────────────────────
@@ -321,7 +182,6 @@ fn check_assert(assert: &Assert, resp: &ResponseData) -> Result<(), String> {
 fn check_status(status: u16, matcher: &Option<Matcher>) -> Result<(), String> {
     let val = Value::Number(status.into());
     match matcher {
-        // No matcher: any 2xx is truthy
         None => {
             if (200..300).contains(&status) {
                 Ok(())
@@ -335,31 +195,33 @@ fn check_status(status: u16, matcher: &Option<Matcher>) -> Result<(), String> {
 
 // ── Body ──────────────────────────────────────────────────────────────────────
 
-fn check_body(target: &BodyTarget, matcher: &Option<Matcher>, resp: &ResponseData) -> Result<(), String> {
+fn check_body(
+    target: &BodyTarget,
+    matcher: &Option<Matcher>,
+    resp: &ResponseData,
+) -> Result<(), String> {
     match target {
-        BodyTarget::Raw => {
-            match matcher {
-                None => {
-                    if !resp.body_raw.is_empty() {
-                        Ok(())
-                    } else {
-                        Err("assert body — body is empty".to_string())
-                    }
+        BodyTarget::Raw => match matcher {
+            None => {
+                if !resp.body_raw.is_empty() {
+                    Ok(())
+                } else {
+                    Err("assert body — body is empty".to_string())
                 }
-                Some(Matcher::Empty) => {
-                    if resp.body_raw.is_empty() {
-                        Ok(())
-                    } else {
-                        Err("assert body empty — body is not empty".to_string())
-                    }
-                }
-                Some(Matcher::Length(len_arg)) => {
-                    let len_val = Value::Number(resp.body_raw.len().into());
-                    check_length("body", &len_val, len_arg)
-                }
-                Some(m) => apply_matcher("body", &Value::String(resp.body_raw.clone()), m),
             }
-        }
+            Some(Matcher::Empty) => {
+                if resp.body_raw.is_empty() {
+                    Ok(())
+                } else {
+                    Err("assert body empty — body is not empty".to_string())
+                }
+            }
+            Some(Matcher::Length(len_arg)) => {
+                let len_val = Value::Number(resp.body_raw.len().into());
+                check_length("body", &len_val, len_arg)
+            }
+            Some(m) => apply_matcher("body", &Value::String(resp.body_raw.clone()), m),
+        },
 
         BodyTarget::Path(segs) => {
             let label = format!("body.{}", display_path(segs));
@@ -371,7 +233,6 @@ fn check_body(target: &BodyTarget, matcher: &Option<Matcher>, resp: &ResponseDat
             let val = navigate_json(json, segs);
 
             match matcher {
-                // No matcher: key must exist and be truthy
                 None => match val {
                     None => Err(format!("{label} — key not found")),
                     Some(Value::Null) => Err(format!("{label} — value is null")),
@@ -464,7 +325,6 @@ fn check_cookie(
             let attr_val = c.attributes.get(attr_name);
 
             match matcher {
-                // No matcher or `present` — just check the attribute exists (e.g. httponly, secure)
                 None | Some(Matcher::Present) => match attr_val {
                     Some(_) => Ok(()),
                     None => Err(format!("{label} — attribute not set")),
@@ -511,9 +371,8 @@ fn apply_matcher(label: &str, actual: &Value, matcher: &Matcher) -> Result<(), S
                 Ok(())
             } else {
                 Err(format!(
-                    "assert {label} equals {}\n  expected: {}\n       got: {actual}",
-                    display_assert_value(expected),
-                    display_assert_value(expected),
+                    "assert {label} equals {exp}\n  expected: {exp}\n       got: {actual}",
+                    exp = display_assert_value(expected),
                 ))
             }
         }
@@ -541,8 +400,7 @@ fn apply_matcher(label: &str, actual: &Value, matcher: &Matcher) -> Result<(), S
                     }
                 }
                 Value::Array(arr) => {
-                    let sv = Value::String(needle.clone());
-                    if arr.contains(&sv) {
+                    if arr.contains(&Value::String(needle.clone())) {
                         Ok(())
                     } else {
                         Err(format!("{label} contains {needle:?} — not found in array"))
@@ -613,7 +471,7 @@ fn check_length(label: &str, actual: &Value, arg: &LengthArg) -> Result<(), Stri
     let len = match actual {
         Value::String(s) => s.len(),
         Value::Array(a) => a.len(),
-        Value::Number(n) => n.as_u64().unwrap_or(0) as usize, // pre-computed length
+        Value::Number(n) => n.as_u64().unwrap_or(0) as usize,
         _ => return Err(format!("{label} length — not a string or array")),
     };
     let len_val = Value::Number(len.into());
