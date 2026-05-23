@@ -10,9 +10,31 @@ use std::io::{self, Read};
 
 // <https://docs.rs/clap/latest/clap/_cookbook/git_derive/index.html>
 
+
+
 /// A better curl CLI
 #[derive(Parser)]
-#[command(about = "Hurl is a better curl!", long_about = None)]
+#[command(
+    about = "Hurl is a better curl!",
+    long_about = r##"
+       .-""""""-.
+     .'          '.
+    /   O      O   \
+   :                :
+   |    \     /     |    HHHH   U   U   RRRR   LL
+   :     '---'      :    H   H  U   U   R   R  L 
+    \              /     HHHH   U   U   RRRR   L
+     '.          .'     H   H  U   U   R  R   L
+       '-......-'       H   H  UUUUU   R   R  LLLLL
+              |
+             _|_ 
+            /   \
+           |  ~  |  <--- HURL
+            \___/
+             |||
+            _|||_
+    "##,
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
