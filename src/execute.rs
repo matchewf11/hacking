@@ -8,8 +8,8 @@ use crate::{
     parser::{
         json::parse_json,
         suite::{
-            Assert, AssertTarget, AssertValue, BodyTarget, LengthArg, Matcher, PathSegment, Suite,
-            Test,
+            Assert, AssertTarget, AssertValue, BodyTarget, Group, LengthArg, Matcher, PathSegment,
+            Suite, Test,
         },
     },
 };
@@ -30,31 +30,53 @@ struct ParsedCookie {
     attributes: HashMap<String, Option<String>>,
 }
 
+// ── Results ───────────────────────────────────────────────────────────────────
+
+struct GroupResult {
+    name: String,
+    tests: Vec<TestResult>,
+}
+
+struct TestResult {
+    name: String,
+    passed: bool,
+    failures: Vec<String>,
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 pub async fn run_tests(suite: Suite) -> Result<(), Error> {
     let client = Client::new();
     let base = std::env::var("HURL_BASE_URL").unwrap_or_default();
 
+    // Each group runs concurrently; tests within a group run sequentially so
+    // later tests can depend on state established by earlier ones.
+    let handles: Vec<_> = suite
+        .0
+        .into_iter()
+        .map(|group| {
+            let client = client.clone();
+            let base = base.clone();
+            tokio::spawn(async move { run_group(client, base, group).await })
+        })
+        .collect();
+
+    // Join in spawn order so output stays in the original group order.
     let mut total = 0usize;
     let mut passed = 0usize;
 
-    // TODO(RFC-002): run groups concurrently with tokio::spawn; tests within a
-    // group must remain sequential so later tests can depend on earlier state.
-    for group in &suite.0 {
-        println!("\ngroup {}", group.name);
-        for test in &group.tests {
+    for handle in handles {
+        let gr = handle.await.unwrap();
+        println!("\ngroup {}", gr.name);
+        for tr in &gr.tests {
             total += 1;
-            match run_test(&client, &base, test).await {
-                Ok(()) => {
-                    println!("  ✓  {}", test.name);
-                    passed += 1;
-                }
-                Err(failures) => {
-                    println!("  ✗  {}", test.name);
-                    for msg in &failures {
-                        println!("       {msg}");
-                    }
+            if tr.passed {
+                println!("  ✓  {}", tr.name);
+                passed += 1;
+            } else {
+                println!("  ✗  {}", tr.name);
+                for msg in &tr.failures {
+                    println!("       {msg}");
                 }
             }
         }
@@ -67,6 +89,31 @@ pub async fn run_tests(suite: Suite) -> Result<(), Error> {
         Err(Error::TestsFailed(failed))
     } else {
         Ok(())
+    }
+}
+
+// ── Group runner ──────────────────────────────────────────────────────────────
+
+async fn run_group(client: Client, base: String, group: Group) -> GroupResult {
+    let mut tests = Vec::new();
+    for test in &group.tests {
+        let tr = match run_test(&client, &base, test).await {
+            Ok(()) => TestResult {
+                name: test.name.clone(),
+                passed: true,
+                failures: vec![],
+            },
+            Err(failures) => TestResult {
+                name: test.name.clone(),
+                passed: false,
+                failures,
+            },
+        };
+        tests.push(tr);
+    }
+    GroupResult {
+        name: group.name,
+        tests,
     }
 }
 
