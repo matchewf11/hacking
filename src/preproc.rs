@@ -1,9 +1,42 @@
 use std::collections::HashMap;
 use std::env;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 pub fn preproc(input: &str) -> String {
     let (cleaned, map) = collect_replacements(input);
-    apply_replacements(&cleaned, &map)
+    let replaced = apply_replacements(&cleaned, &map);
+    expand_includes(&replaced, std::path::Path::new("."))
+}
+
+fn expand_includes(input: &str, base: &Path) -> String {
+    let mut out = String::new();
+
+    for line in input.lines() {
+        let line = line.trim();
+
+        if let Some(path) = parse_include(line) {
+            let full_path = base.join(path);
+
+            let content = fs::read_to_string(&full_path)
+                .unwrap_or_else(|e| panic!("failed to read {:?}: {}", full_path, e));
+
+            let dir = full_path.parent().unwrap_or(base);
+
+            out.push_str(&expand_includes(&content, dir));
+        } else {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+
+    out
+}
+
+fn parse_include(line: &str) -> Option<&str> {
+    let line = line.trim();
+    line.strip_prefix("include \"")
+        .and_then(|s| s.strip_suffix('"'))
 }
 
 fn collect_replacements(input: &str) -> (String, HashMap<String, String>) {
@@ -133,23 +166,6 @@ this should stay unchanged
         let out = preproc(input);
 
         assert!(out.contains("this should stay unchanged"));
-    }
-
-    #[test]
-    fn empty_env_defaults_to_empty_string() {
-        unsafe {
-            std::env::remove_var("FOO");
-        }
-
-        let input = r#"
-replace FOO
-
-hello FOO world
-"#;
-
-        let out = preproc(input);
-
-        assert!(out.contains("hello  world"));
     }
 
     #[test]

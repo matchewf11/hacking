@@ -10,8 +10,6 @@ use std::io::{self, Read};
 
 // <https://docs.rs/clap/latest/clap/_cookbook/git_derive/index.html>
 
-
-
 /// A better curl CLI
 #[derive(Parser)]
 #[command(about = "Wurl is a better curl!", long_about = None)]
