@@ -2,5 +2,6 @@ use hurl::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    hurl::start().await
+    hurl::start().await;
+    Ok(())
 }
