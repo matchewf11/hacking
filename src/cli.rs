@@ -76,6 +76,7 @@ enum Commands {
         #[arg(short, long)]
         cookies: Vec<String>,
     },
+    Cook,
 }
 
 pub async fn start() -> Result<(), Error> {
@@ -133,6 +134,7 @@ pub async fn start() -> Result<(), Error> {
                 )?)
                 .await?;
         }
+        Commands::Cook => println!("{}", include_str!("cookbook.txt")),
     }
     Ok(())
 }
