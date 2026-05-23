@@ -22,6 +22,11 @@ impl<'a> Ho<'a> {
         queries: &'a [&'a str],
         headers: &'a [&'a str],
     ) -> Result<Self, Error> {
+        let path = if !path.starts_with("http://") && !path.starts_with("https://") {
+            format!("http://{}", path)
+        } else {
+            path
+        };
         Ok(Ho {
             path,
             body,

@@ -88,7 +88,7 @@ pub async fn start() -> Result<(), Error> {
                     format!("{}{}", base, path.unwrap_or_default()),
                     Option::None,
                     &query.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-                    &headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(), // should this even be an option
+                    &headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                 )?)
                 .await?;
         }
@@ -109,7 +109,7 @@ pub async fn start() -> Result<(), Error> {
                     format!("{}{}", base, path.unwrap_or_default()),
                     Option::Some(body),
                     &query.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-                    &headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(), // should this even be an option
+                    &headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                 )?)
                 .await?;
         }

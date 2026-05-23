@@ -2,6 +2,6 @@ use hurl::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    hurl::start().await.unwrap();
+    let _ = hurl::start().await?;
     Ok(())
 }
