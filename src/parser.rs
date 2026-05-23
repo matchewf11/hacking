@@ -1,4 +1,6 @@
-use serde_json::{Map, Value, json};
+use serde_json::{Map, Value};
+
+pub mod suite;
 
 pub fn parse_json(inputs: &[&str]) -> Value {
     let mut val = Map::new();
@@ -78,6 +80,7 @@ fn parse_arr(input: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_parse_json() {

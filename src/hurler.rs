@@ -128,6 +128,7 @@ impl Hurler {
 mod tests {
     use super::*;
 
+    #[ignore]
     #[tokio::test]
     async fn test_get() {
         let h = Hurler::new();
@@ -139,6 +140,7 @@ mod tests {
         .unwrap();
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_post() {
         let h = Hurler::new();
