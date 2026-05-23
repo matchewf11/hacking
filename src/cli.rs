@@ -1,4 +1,4 @@
-use crate::{Error, Hurler, parser::parse_json};
+use crate::{Error, Hurler, parser::{json::parse_json, suite::parse}, test::run_tests};
 use clap::{Parser, Subcommand};
 
 // <https://docs.rs/clap/latest/clap/_cookbook/git_derive/index.html>
@@ -50,12 +50,12 @@ pub async fn start() -> Result<(), Error> {
             path,
             format,
             query,
-        } => 
+        } =>
             hurler
                 .get(base, &query.iter().map(|s| s.as_str()).collect::<Vec<_>>())
                 .await,
         Commands::Test { input } => {
-            todo!();
+            run_tests(parse(&input).unwrap())
         }
         Commands::Post { base, json } => {
             let json = parse_json(

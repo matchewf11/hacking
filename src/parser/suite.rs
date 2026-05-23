@@ -43,7 +43,13 @@ impl<'a> Iterator for Lexer<'a> {
                 return self.next();
             }
             _ => {
-                self.0.by_ref().take_while(|b: &u8| !b.is_ascii_whitespace()).collect::<Vec<_>>()
+                let mut res = Vec::new();
+
+                while let Some(b) = self.0.peek() && !b.is_ascii_whitespace() {
+                    res.push(self.0.next().unwrap());
+                }
+
+                res
             }
         };
 
@@ -56,6 +62,9 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
+pub fn parse(input: &str) -> Result<Suite, String> {
+    Parser::new(Lexer::new(input).collect::<Vec<_>>().into_iter()).parse()
+}
 
 #[derive(PartialEq, Debug)]
 pub struct Suite(Vec<Group>);
@@ -82,25 +91,34 @@ impl<I: Iterator<Item = Token>> Parser<I> {
 
     fn parse(mut self) -> Result<Suite, String> {
         let mut groups = Vec::new();
-        while let Some(g) = self.parse_group()? {
-            groups.push(g);
+
+        while let Some(group) = self.parse_group()? {
+            groups.push(group);
         }
+
         Ok(Suite(groups))
     }
 
+    fn expect_ident(&mut self, msg: &str) -> Result<String, String> {
+        match self.0.next() {
+            Some(Token::Ident(s)) => Ok(s),
+            other => Err(format!("{msg}, got {:?}", other)),
+        }
+    }
+
     fn parse_group(&mut self) -> Result<Option<Group>, String> {
+
         match self.0.peek() {
             None => return Ok(None),
             Some(Token::Group) => {
                 self.0.next();
             }
-            _ => return Err("wanted group".to_string()),
+            other => {
+                return Err(format!("expected `group`, got {:?}", other));
+            }
         }
 
-        let name = match self.0.next() {
-            Some(Token::Ident(s)) => s,
-            _ => return Err("wanted group name".to_string()),
-        };
+        let name = self.expect_ident("expected group name")?;
 
         let mut tests = Vec::new();
 
@@ -116,7 +134,9 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                 Some(tok) => {
                     return Err(format!("unexpected token in group: {:?}", tok));
                 }
-                None => return Err("unexpected eof in group".to_string()),
+                None => {
+                    return Err("unexpected EOF in group".to_string());
+                }
             }
         }
 
@@ -126,67 +146,64 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     fn parse_test(&mut self) -> Result<Test, String> {
         match self.0.next() {
             Some(Token::Test) => {}
-            _ => return Err("wanted test".to_string()),
+            other => return Err(format!("expected `test`, got {:?}", other)),
         }
 
-        let name = match self.0.next() {
-            Some(Token::Ident(s)) => s,
-            _ => return Err("wanted test name".to_string()),
-        };
+        let name = self.expect_ident("expected test name")?;
 
-        let _method = match self.0.next() {
-            Some(Token::Ident(s)) => s,
-            _ => return Err("wanted method".to_string()),
-        };
-
-        let value = match self.0.next() {
-            Some(Token::Ident(s)) => s,
-            _ => return Err("wanted value".to_string()),
-        };
-
+        let mut value_parts = Vec::new();
         let mut asserts = Vec::new();
 
         loop {
             match self.0.peek() {
-                Some(Token::Assert) => {
-                    self.0.next();
-
-                    let first = match self.0.next() {
-                        Some(Token::Ident(s)) => s,
-                        _ => return Err("wanted assert value".to_string()),
-                    };
-
-                    let assert_value = match self.0.peek() {
-                        Some(Token::Ident(_)) => {
-                            match self.0.next() {
-                                Some(Token::Ident(s)) => {
-                                    format!("{first} {s}")
-                                }
-                                _ => unreachable!(),
-                            }
-                        }
-                        _ => first,
-                    };
-
-                    asserts.push(assert_value);
+                Some(Token::Ident(_)) => {
+                    if let Some(Token::Ident(s)) = self.0.next() {
+                        value_parts.push(s);
+                    }
                 }
+                Some(Token::Assert) | Some(Token::End) => break,
+                Some(tok) => {
+                    return Err(format!("unexpected token in test value: {:?}", tok));
+                }
+                None => return Err("unexpected EOF in test value".to_string()),
+            }
+        }
 
+        loop {
+            match self.0.peek() {
+                Some(Token::Assert) => {
+                   self.0.next();
+                    let mut parts = Vec::new();
+                    loop {
+                        match self.0.peek() {
+                            Some(Token::Ident(_)) => {
+                                if let Some(Token::Ident(s)) = self.0.next() {
+                                    parts.push(s);
+                                }
+                            }
+                            Some(Token::Assert | Token::End) => break,
+                            Some(tok) => {
+                                return Err(format!("unexpected token in assert: {:?}", tok));
+                            }
+                            None => return Err("unexpected EOF in assert".to_string()),
+                        }
+                    }
+                    asserts.push(parts.join(" "));
+                }
                 Some(Token::End) => {
                     self.0.next();
                     break;
                 }
-
                 Some(tok) => {
-                    return Err(format!("unexpected token in test: {:?}", tok));
+                    return Err(format!("unexpected token in test asserts: {:?}", tok));
                 }
-
-                None => return Err("unexpected eof in test".to_string()),
+                None => return Err("unexpected EOF in test asserts".to_string()),
             }
         }
 
         Ok(Test {
             name,
-            value,
+            value: value_parts.join(" "),
             asserts,
         })
     }
@@ -235,7 +252,7 @@ mod tests {
                     tests: vec![
                         Test {
                             name: "abc".to_string(),
-                            value: r#""/foo""#.to_string(),
+                            value: r#"get "/foo""#.to_string(),
                             asserts: vec![
                                 "status 200".to_string(),
                                 "body.foo".to_string(),
@@ -248,7 +265,7 @@ mod tests {
                     tests: vec![
                         Test {
                             name: "abc".to_string(),
-                            value: r#""/foo""#.to_string(),
+                            value: r#"get "/foo""#.to_string(),
                             asserts: vec![
                                 "status 200".to_string(),
                                 "body.foo".to_string(),
@@ -256,7 +273,7 @@ mod tests {
                         },
                         Test {
                             name: "ab".to_string(),
-                            value: r#""/foo""#.to_string(),
+                            value: r#"get "/foo""#.to_string(),
                             asserts: vec![
                                 "status 200".to_string(),
                                 r#"body.foo "bar""#.to_string(),
