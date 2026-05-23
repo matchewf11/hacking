@@ -25,13 +25,11 @@ group auth
 end
 
 group foo
-
     test ab
         get "/foo"
         assert status 200
         assert body.foo "bar"
     end
-
     test abc
         post "http://localhost:8080"
             --path "foo"
@@ -39,7 +37,6 @@ group foo
 
         assert status 200
     end
-
 end
 EOF
 )

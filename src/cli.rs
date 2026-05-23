@@ -1,10 +1,10 @@
-use crate::{
-    Error, Hurler,
+use crate::{ Error, Hurler,
     hurler::Ho,
     parser::{json::parse_json, suite::parse},
     test::run_tests,
 };
 use clap::{Parser, Subcommand};
+use std::io::{self, Read};
 
 // <https://docs.rs/clap/latest/clap/_cookbook/git_derive/index.html>
 
@@ -42,7 +42,7 @@ enum Commands {
     },
     Test {
         /// input
-        input: String,
+        input: Option<String>,
     },
     Post {
         /// input
@@ -93,7 +93,13 @@ pub async fn start() -> Result<(), Error> {
                 .await?;
         }
         Commands::Test { input } => {
-            run_tests(parse(&input).unwrap())?;
+            if let Some(input) = input {
+                run_tests(parse(&input).unwrap())?;
+            } else {
+                let mut input = String::new();
+                io::stdin().read_to_string(&mut input).unwrap();
+                run_tests(parse(&input).unwrap())?;
+            }
         }
         Commands::Post {
             base,
