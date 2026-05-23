@@ -1,4 +1,4 @@
-use crate::{Error, Hurler, parser::parse_json};
+use crate::{Error, Hurler, hurler::Ho, parser::parse_json};
 use clap::{Parser, Subcommand};
 
 // <https://docs.rs/clap/latest/clap/_cookbook/git_derive/index.html>
@@ -26,10 +26,13 @@ enum Commands {
         #[arg(short, long)]
         path: Option<String>,
 
-        // :id
+        // path args
         /// Query Args
         #[arg(short, long)]
         query: Vec<String>,
+
+        // headers
+        headers: Vec<String>,
     },
     Test {
         input: String,
@@ -37,10 +40,24 @@ enum Commands {
     Post {
         base: String,
         json: Vec<String>,
+
+        #[arg(short, long)]
+        format: bool,
+
+        #[arg(short, long)]
+        path: Option<String>,
+
+        // path args
+        /// Query Args
+        #[arg(short, long)]
+        query: Vec<String>,
+
+        // headers
+        headers: Vec<String>,
     },
 }
 
-pub async fn start() -> Result<(), Error> {
+pub async fn start() -> Result<serde_json::Value, Error> {
     let args = Cli::parse();
     let hurler = Hurler::new();
 
@@ -50,22 +67,37 @@ pub async fn start() -> Result<(), Error> {
             path,
             format,
             query,
-        } => 
+            headers,
+        } => {
             hurler
-                .get(base, &query.iter().map(|s| s.as_str()).collect::<Vec<_>>())
-                .await,
+                .get(Ho::new(
+                    format!("{}{}", base, path.unwrap_or_default()),
+                    Option::None,
+                    &query.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    &headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(), // should this even be an option
+                )?)
+                .await
+        }
         Commands::Test { input } => {
             todo!();
         }
-        Commands::Post { base, json } => {
-            let json = parse_json(
-                &json
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect::<Vec<_>>()
-            )
-            .to_string();
-            hurler.post(base, json).await
+        Commands::Post {
+            base,
+            path,
+            json,
+            format,
+            query,
+            headers,
+        } => {
+            let body = parse_json(&json.iter().map(|s| s.as_str()).collect::<Vec<_>>()).to_string();
+            hurler
+                .post(Ho::new(
+                    format!("{}{}", base, path.unwrap_or_default()),
+                    Option::Some(body),
+                    &query.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    &headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(), // should this even be an option
+                )?)
+                .await
         }
     }
 }

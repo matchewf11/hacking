@@ -16,4 +16,6 @@ pub enum Error {
     Json(reqwest::Error),
     #[error("unable to read queries: {0}")]
     Query(String),
+    #[error("unable to read headers: {0}")]
+    Header(String),
 }
