@@ -57,7 +57,7 @@ enum Commands {
     },
 }
 
-pub async fn start() -> Result<serde_json::Value, Error> {
+pub async fn start() -> Result<(), Error> {
     let args = Cli::parse();
     let hurler = Hurler::new();
 
@@ -67,7 +67,8 @@ pub async fn start() -> Result<serde_json::Value, Error> {
             path,
             format,
             query,
-        } =>
+            headers,
+        } => {
             hurler
                 .get(Ho::new(
                     format!("{}{}", base, path.unwrap_or_default()),
@@ -75,10 +76,10 @@ pub async fn start() -> Result<serde_json::Value, Error> {
                     &query.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                     &headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(), // should this even be an option
                 )?)
-                .await
+                .await?;
         }
         Commands::Test { input } => {
-            run_tests(parse(&input).unwrap())
+            run_tests(parse(&input).unwrap())?;
         }
         Commands::Post {
             base,
@@ -96,7 +97,8 @@ pub async fn start() -> Result<serde_json::Value, Error> {
                     &query.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                     &headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(), // should this even be an option
                 )?)
-                .await
+                .await?;
         }
     }
+    Ok(())
 }
